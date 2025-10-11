@@ -1,8 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:validators/validators.dart';
+import 'signup_page.dart';
+
+// Simple validators to replace 'validators' package
+bool isEmail(String input) {
+  return RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$").hasMatch(input);
+}
+
+bool isNumeric(String input) {
+  return double.tryParse(input) != null;
+}
 
 class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
   @override
   _LoginPageState createState() => _LoginPageState();
 }
@@ -12,6 +23,7 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   void _login() {
     if (_formKey.currentState!.validate()) {
@@ -20,7 +32,6 @@ class _LoginPageState extends State<LoginPage> {
       String identifier = _identifierController.text.trim();
       String password = _passwordController.text.trim();
 
-      // Determine type of identifier
       String type;
       if (isEmail(identifier)) {
         type = 'email';
@@ -29,10 +40,6 @@ class _LoginPageState extends State<LoginPage> {
       } else {
         type = 'uuid';
       }
-
-      // Call your API here with type, identifier, password
-      // Example:
-      // API.login(type: type, identifier: identifier, password: password);
 
       Fluttertoast.showToast(
           msg: "Logging in using $type...",
@@ -45,32 +52,46 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
-      body: Center(
+      body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.08),
           child: Form(
             key: _formKey,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                SizedBox(height: screenHeight * 0.08),
+
+                // Logo
+                Image.asset(
+                  'assets/logo.png',
+                  width: 120,
+                  height: 120,
+                ),
+                SizedBox(height: 20),
+
+                // Welcome Text
                 Text(
-                  "Voting Management Login",
+                  "Welcome to Votely",
                   style: TextStyle(
-                      fontSize: 28,
+                      fontSize: screenWidth * 0.07,
                       fontWeight: FontWeight.bold,
                       color: Colors.blue[700]),
+                  textAlign: TextAlign.center,
                 ),
                 SizedBox(height: 40),
 
-                // Identifier Field (Email / Phone / UUID)
+                // Identifier Field
                 TextFormField(
                   controller: _identifierController,
                   decoration: InputDecoration(
                     labelText: "Email / Phone / UUID",
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12)),
-                    prefixIcon: Icon(Icons.person),
+                    prefixIcon: const Icon(Icons.person),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -84,12 +105,22 @@ class _LoginPageState extends State<LoginPage> {
                 // Password Field
                 TextFormField(
                   controller: _passwordController,
-                  obscureText: true,
+                  obscureText: _obscurePassword,
                   decoration: InputDecoration(
                     labelText: "Password",
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12)),
-                    prefixIcon: Icon(Icons.lock),
+                    prefixIcon: const Icon(Icons.lock),
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                    ),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -98,34 +129,68 @@ class _LoginPageState extends State<LoginPage> {
                     return null;
                   },
                 ),
-                SizedBox(height: 30),
 
+                // Forgot Password aligned right
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      // Navigate to forgot password page
+                    },
+                    child: const Text("Forgot Password?"),
+                  ),
+                ),
+
+                SizedBox(height: 20),
+
+                // Login Button
                 // Login Button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _login,
                     style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue, // <-- set button color to blue
                       padding: EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                     ),
                     child: _isLoading
-                        ? CircularProgressIndicator(color: Colors.white)
-                        : Text(
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
                       "Login",
-                      style: TextStyle(fontSize: 18),
+                      style: TextStyle(fontSize: 18, color: Colors.white),
                     ),
                   ),
                 ),
 
-                SizedBox(height: 20),
-                TextButton(
-                  onPressed: () {
-                    // Navigate to forgot password page
-                  },
-                  child: Text("Forgot Password?"),
+                SizedBox(height: 15),
+
+                // Create Account Button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      // Navigate to create account page
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CreateAccountPage(),
+                        ),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text(
+                      "Create Account",
+                      style: TextStyle(fontSize: 18, color: Colors.blue),
+                    ),
+                  ),
                 ),
+                SizedBox(height: 30),
               ],
             ),
           ),

@@ -28,6 +28,7 @@ flutter:
     - assets/home1.png
     - assets/home2.png
     - assets/home3.png
+    - assets/back_button.png
 
   # To add assets (images/fonts), uncomment and configure below:
   # assets:
