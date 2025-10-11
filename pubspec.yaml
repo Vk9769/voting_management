@@ -21,11 +21,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # To add assets (images/fonts), uncomment and configure below:
-  # assets:
-  #   - assets/images/
-  #
-  # fonts:
-  #   - family: CustomFont
-  #     fonts:
-  #       - asset: fonts/CustomFont-Regular.ttf
+  # Assets registration
+  assets:
+    - assets/logo.png
+    - assets/home1.png
+    - assets/home2.png
+    - assets/home3.png
