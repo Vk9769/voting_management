@@ -12,6 +12,8 @@ dependencies:
     sdk: flutter
   google_maps_flutter: ^2.2.5
   cupertino_icons: ^1.0.8
+  fluttertoast: ^8.2.1
+  validators: ^3.0.0
 
 dev_dependencies:
   flutter_test:
@@ -21,9 +23,17 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # Assets registration
   assets:
     - assets/logo.png
     - assets/home1.png
     - assets/home2.png
     - assets/home3.png
+
+  # To add assets (images/fonts), uncomment and configure below:
+  # assets:
+  #   - assets/images/
+  #
+  # fonts:
+  #   - family: CustomFont
+  #     fonts:
+  #       - asset: fonts/CustomFont-Regular.ttf

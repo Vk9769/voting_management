@@ -132,7 +132,7 @@ class _WelcomePageState extends State<WelcomePage> {
   void goToLogin() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const LoginPage()), // navigate to login_page.dart
+      MaterialPageRoute(builder: (_) => LoginPage()), // navigate to login_page.dart
     );
   }
 
