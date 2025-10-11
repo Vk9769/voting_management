@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'signup_page.dart';
+import 'admin_dashboard.dart'; // import the dashboard page
+import 'agent_dashboard.dart'; // make sure this file exists
 
 // Simple validators to replace 'validators' package
 bool isEmail(String input) {
@@ -47,6 +49,12 @@ class _LoginPageState extends State<LoginPage> {
           gravity: ToastGravity.BOTTOM);
 
       setState(() => _isLoading = false);
+
+      // Navigate to Admin Dashboard
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const AdminDashboard()),
+      );
     }
   }
 
@@ -144,13 +152,12 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(height: 20),
 
                 // Login Button
-                // Login Button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _login,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue, // <-- set button color to blue
+                      backgroundColor: Colors.blue,
                       padding: EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
@@ -166,12 +173,40 @@ class _LoginPageState extends State<LoginPage> {
 
                 SizedBox(height: 15),
 
+
+                // Temporary Agent Login Button
+                SizedBox(height: 15),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // Navigate to Agent Dashboard
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AgentDashboard()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green, // distinguishable color
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text(
+                      "Agent Login",
+                      style: TextStyle(fontSize: 18, color: Colors.white),
+                    ),
+                  ),
+                ),
+
+
+
+
                 // Create Account Button
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
                     onPressed: () {
-                      // Navigate to create account page
                       Navigator.push(
                         context,
                         MaterialPageRoute(

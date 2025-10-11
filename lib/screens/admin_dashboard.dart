@@ -1,32 +1,10 @@
-import 'dart:ui';
+// admin_dashboard.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Voting Management App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const AdminDashboard(),
-    );
-  }
-}
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
 
+  // Sample stats
   final int polls = 12;
   final int agents = 25;
   final int voters = 500;
@@ -34,250 +12,174 @@ class AdminDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Color primary = Theme.of(context).colorScheme.primary; // keep existing theme (blue)
+    final Color foreground = Colors.black87; // neutral text
+    final Color cardBg = Colors.white; // neutral background
+
     return Scaffold(
-      drawer: _buildDrawer(context),
-      extendBodyBehindAppBar: true,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(70),
-        child: ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: AppBar(
-              backgroundColor: Colors.white.withOpacity(0.2),
-              elevation: 0,
-              centerTitle: true,
-              title: const Text(
-                'Admin Dashboard',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black26,
-                      blurRadius: 2,
-                      offset: Offset(1, 1),
-                    )
+      drawer: _buildDrawer(context, primary),
+      appBar: AppBar(
+        title: const Text('Admin Dashboard'),
+        backgroundColor: Colors.blue,
+        centerTitle: true,
+        elevation: 2,
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final int columns = constraints.maxWidth >= 1200
+              ? 4
+              : constraints.maxWidth >= 900
+              ? 3
+              : 2;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header
+                Text(
+                  'Overview',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: foreground,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Responsive KPI Grid
+                GridView(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.15,
+                  ),
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    StatCard(
+                      title: 'Polling',
+                      value: polls.toString(),
+                      icon: Icons.how_to_vote,
+                      color: primary, // primary blue
+                      background: cardBg,
+                    ),
+                    StatCard(
+                      title: 'Agents',
+                      value: agents.toString(),
+                      icon: Icons.group,
+                      color: Colors.teal, // subtle accent within same cool family
+                      background: cardBg,
+                    ),
+                    StatCard(
+                      title: 'Voters',
+                      value: voters.toString(),
+                      icon: Icons.people,
+                      color: Colors.orange, // single warm accent
+                      background: cardBg,
+                    ),
+                    StatCard(
+                      title: 'Reports',
+                      value: reports.toString(),
+                      icon: Icons.bar_chart,
+                      color: Colors.blueGrey, // neutral accent
+                      background: cardBg,
+                    ),
                   ],
                 ),
-              ),
-              iconTheme: const IconThemeData(color: Colors.white),
-            ),
-          ),
-        ),
-      ),
-      body: Stack(
-        children: [
-          // Gradient background
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF2193b0), Colors.white, Color(0xFF6dd5ed)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-          ),
+                const SizedBox(height: 20),
 
-          // Top-left blurred circle
-          Positioned(
-            top: -80,
-            left: -80,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.3),
-                shape: BoxShape.circle,
-              ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
-                child: const SizedBox(),
-              ),
-            ),
-          ),
+                // Primary actions
+                _ActionsRow(primary: primary),
 
-          // Bottom-right blurred circle
-          Positioned(
-            bottom: -80,
-            right: -80,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.3),
-                shape: BoxShape.circle,
-              ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
-                child: const SizedBox(),
-              ),
-            ),
-          ),
+                const SizedBox(height: 24),
 
-          // Main content
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  const SizedBox(height: 10),
-
-                  // Dashboard cards
-                  Expanded(
-                    flex: 2,
-                    child: GridView.count(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      children: [
-                        _buildDashboardCard('Polling', polls, Colors.blue),
-                        _buildDashboardCard('Agents', agents, Colors.green),
-                        _buildDashboardCard('Voters', voters, Colors.orange),
-                        _buildDashboardCard('Reports', reports, Colors.red),
-                      ],
-                    ),
+                // Recent Activity section
+                Card(
+                  color: cardBg,
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
                   ),
-
-                  const SizedBox(height: 20),
-
-                  // Polling Booth buttons
-                  Expanded(
-                    flex: 1,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildGradientButton(
-                          context,
-                          title: 'Add Polling Booth',
-                          colors: [Colors.blue, Colors.greenAccent],
-                          icon: Icons.add_location_alt,
-                          onTap: () {},
+                        _SectionHeader(
+                          title: 'Recent Activity',
+                          icon: Icons.history,
+                          color: primary,
                         ),
-                        const SizedBox(height: 16),
-                        _buildGradientButton(
-                          context,
-                          title: 'View Polling Booths',
-                          colors: [Colors.green, Colors.lightBlueAccent],
-                          icon: Icons.location_on,
-                          onTap: () {},
+                        const SizedBox(height: 8),
+                        _ActivityTile(
+                          icon: Icons.add_location_alt,
+                          color: primary,
+                          title: 'New polling booth added',
+                          subtitle: 'Booth #13 - Ward 4',
+                          time: '2h ago',
+                        ),
+                        const Divider(height: 16),
+                        const _ActivityTile(
+                          icon: Icons.group_add,
+                          color: Colors.teal,
+                          title: '2 agents onboarded',
+                          subtitle: 'Assigned to Booth #5 & #8',
+                          time: 'Yesterday',
+                        ),
+                        const Divider(height: 16),
+                        const _ActivityTile(
+                          icon: Icons.report,
+                          color: Colors.blueGrey,
+                          title: 'Report reviewed',
+                          subtitle: 'Queue length trends updated',
+                          time: '2 days ago',
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildDashboardCard(String title, int count, Color color) {
-    return Card(
-      elevation: 5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: color.withOpacity(0.1),
-        ),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '$count',
-              style: TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 18,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGradientButton(BuildContext context,
-      {required String title,
-        required List<Color> colors,
-        required IconData icon,
-        required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(colors: colors),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.white),
-            const SizedBox(width: 10),
-            Text(
-              title,
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Drawer _buildDrawer(BuildContext context) {
+  // Drawer
+  Drawer _buildDrawer(BuildContext context, Color primary) {
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          SafeArea(
-            child: Container(
-              color: Colors.blue,
-              height: 200,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.person, size: 50, color: Colors.blue),
+          DrawerHeader(
+            decoration: BoxDecoration(color: Colors.blue),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center, // center vertically
+              crossAxisAlignment: CrossAxisAlignment.center, // center horizontally
+              children: const [
+                CircleAvatar(
+                  radius: 35,
+                  backgroundColor: Colors.white,
+                  child: Icon(Icons.person, size: 50, color: Colors.blue),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  'Admin Name',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Colors.white,
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    "Admin Name",
-                    style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    "admin@example.com",
-                    style: TextStyle(fontSize: 14, color: Colors.white70),
-                  ),
-                ],
-              ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'admin@example.com',
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ],
             ),
           ),
           ListTile(
@@ -286,7 +188,7 @@ class AdminDashboard extends StatelessWidget {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AdminProfileScreen()),
+                MaterialPageRoute(builder: (_) => const AdminProfileScreen()),
               );
             },
           ),
@@ -298,9 +200,7 @@ class AdminDashboard extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('Logout'),
-            onTap: () {
-              Navigator.pop(context);
-            },
+            onTap: () => Navigator.pop(context),
           ),
         ],
       ),
@@ -308,35 +208,259 @@ class AdminDashboard extends StatelessWidget {
   }
 }
 
+// Compact section header
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.title,
+    required this.icon,
+    required this.color,
+  });
+
+  final String title;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: color),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// KPI Card
+class StatCard extends StatelessWidget {
+  const StatCard({
+    super.key,
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.background,
+  });
+
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: background,
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _IconBadge(icon: icon, color: color),
+            const Spacer(),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Rounded icon chip
+class _IconBadge extends StatelessWidget {
+  const _IconBadge({required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withOpacity(.12),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      padding: const EdgeInsets.all(10),
+      child: Icon(icon, color: Colors.blue, size: 24),
+    );
+  }
+}
+
+// Actions row with primary buttons
+class _ActionsRow extends StatelessWidget {
+  const _ActionsRow({required this.primary});
+
+  final Color primary;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool wide = MediaQuery.of(context).size.width >= 700;
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        // Add Polling Booth
+        SizedBox(
+          width: wide ? 260 : double.infinity,
+          child: FilledButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.add_location_alt),
+            label: const Text('Add Polling Booth'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+
+        // View Polling Booths
+        SizedBox(
+          width: wide ? 260 : double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.location_on),
+            label: const Text('View Polling Booths'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.blue,
+              side: BorderSide(color: Colors.blue, width: 1.25),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+
+        // Add Agent
+        SizedBox(
+          width: wide ? 260 : double.infinity,
+          child: FilledButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.person_add),
+            label: const Text('Add Agent'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.blue, // custom color
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+
+        // View Agent List
+        SizedBox(
+          width: wide ? 260 : double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.group),
+            label: const Text('View Agent List'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.blue, // same accent color
+              side: BorderSide(color: Colors.blue, width: 1.25),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// Activity list tile
+class _ActivityTile extends StatelessWidget {
+  const _ActivityTile({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.time,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final String time;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: _IconBadge(icon: icon, color: color),
+      title: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.w700),
+      ),
+      subtitle: Text(subtitle),
+      trailing: Text(
+        time,
+        style: TextStyle(color: Colors.grey.shade600),
+      ),
+    );
+  }
+}
+
+// Optional: simple profile screen to keep drawer navigation working
 class AdminProfileScreen extends StatelessWidget {
   const AdminProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final Color primary = Theme.of(context).colorScheme.primary;
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Admin Profile"),
+        title: const Text('Admin Profile'),
+        backgroundColor: primary,
       ),
-      body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              CircleAvatar(
-                radius: 50,
-                child: Icon(Icons.person, size: 50),
-              ),
-              SizedBox(height: 20),
-              Text(
-                "Admin Name",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                "admin@example.com",
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-            ],
-          ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            CircleAvatar(radius: 50, child: Icon(Icons.person, size: 48)),
+            SizedBox(height: 16),
+            Text('Admin Name',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            SizedBox(height: 6),
+            Text('admin@example.com',
+                style: TextStyle(fontSize: 16, color: Colors.grey)),
+          ],
         ),
       ),
     );
