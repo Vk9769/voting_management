@@ -10,7 +10,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  google_maps_flutter: ^2.2.5
+  google_maps_flutter: ^2.4.5
+  geolocator: 14.0.2
+  geocoding: ^2.0.5
   cupertino_icons: ^1.0.8
   fluttertoast: ^8.2.1
   validators: ^3.0.0

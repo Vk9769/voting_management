@@ -1,12 +1,14 @@
 // admin_dashboard.dart
 import 'package:flutter/material.dart';
 import 'login_page.dart';
+import 'add_polling_booth_page.dart';
+import 'view_all_booth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
 
-  // Sample stats
+  // Sample statsx
   final int polls = 12;
   final int agents = 25;
   final int voters = 500;
@@ -364,10 +366,16 @@ class _ActionsRow extends StatelessWidget {
       runSpacing: 12,
       children: [
         // Add Polling Booth
+        // Add Polling Booth
         SizedBox(
           width: wide ? 260 : double.infinity,
           child: FilledButton.icon(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => AddPollingBoothPage()),
+              );
+            },
             icon: const Icon(Icons.add_location_alt),
             label: const Text('Add Polling Booth'),
             style: FilledButton.styleFrom(
@@ -386,7 +394,11 @@ class _ActionsRow extends StatelessWidget {
         SizedBox(
           width: wide ? 260 : double.infinity,
           child: OutlinedButton.icon(
-            onPressed: () {},
+            onPressed: () {Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ViewAllBoothsPage()),
+            );
+              },
             icon: const Icon(Icons.location_on),
             label: const Text('View Polling Booths'),
             style: OutlinedButton.styleFrom(

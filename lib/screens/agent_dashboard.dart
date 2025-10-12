@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'login_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class AgentDashboard extends StatefulWidget {
   const AgentDashboard({super.key});
@@ -10,6 +13,9 @@ class AgentDashboard extends StatefulWidget {
 }
 
 class _AgentDashboardState extends State<AgentDashboard> {
+  // Use ValueNotifier instead of setState every second
+  final ValueNotifier<Duration> onShiftNotifier = ValueNotifier(Duration.zero);
+
   // Agent and booth info (replace with real data)
   final String agentName = 'A. Khan';
   final String boothName = 'Booth #13';
@@ -19,7 +25,6 @@ class _AgentDashboardState extends State<AgentDashboard> {
   // Shift tracking
   final DateTime shiftStart = DateTime.now().subtract(const Duration(minutes: 37));
   late Timer _timer;
-  Duration onShift = Duration.zero;
 
   // Sync state
   bool isSyncing = false;
@@ -43,18 +48,51 @@ class _AgentDashboardState extends State<AgentDashboard> {
   void initState() {
     super.initState();
     voters = generateDemoVoters(120, assignedBoothCode: boothCode, seedMarkedEvery: 9);
+
+    // Timer using ValueNotifier to avoid rebuilding the whole widget every second
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      setState(() {
-        onShift = DateTime.now().difference(shiftStart);
-      });
+      onShiftNotifier.value = DateTime.now().difference(shiftStart);
     });
   }
 
   @override
   void dispose() {
     _timer.cancel();
+    onShiftNotifier.dispose();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  //logout
+  Future<void> _logout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout == true && context.mounted) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear(); // 🔥 clears login session/token
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+            (route) => false,
+      );
+    }
   }
 
   int get totalVoters => voters.length;
@@ -251,6 +289,14 @@ class _AgentDashboardState extends State<AgentDashboard> {
         foregroundColor: Colors.white,
         centerTitle: true,
         elevation: 2,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
+            color: Colors.red,
+            onPressed: _logout,
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _simulateScan,
@@ -302,7 +348,14 @@ class _AgentDashboardState extends State<AgentDashboard> {
                           Flexible(
                             child: Align(
                               alignment: Alignment.centerRight,
-                              child: _ShiftTimer(onShift: onShift, primary: primary, textPrimary: textPrimary),
+                              child: ValueListenableBuilder<Duration>(
+                                valueListenable: onShiftNotifier,
+                                builder: (_, onShift, __) => _ShiftTimer(
+                                  onShift: onShift,
+                                  primary: primary,
+                                  textPrimary: textPrimary,
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -531,15 +584,35 @@ class _KpiGrid extends StatelessWidget {
         crossAxisCount: cross,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        // Increased height so Column content fits comfortably on all devices
         mainAxisExtent: 180,
       ),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        _StatCard(title: 'Total Voters', value: total.toString(), icon: Icons.people, primary: primary, bg: bg, textPrimary: textPrimary),
-        _StatCard(title: 'Marked by You', value: marked.toString(), icon: Icons.verified_user, primary: primary, bg: bg, textPrimary: textPrimary),
-        _StatCard(title: 'Remaining', value: remaining.toString(), icon: Icons.pending_actions, primary: primary, bg: bg, textPrimary: textPrimary),
+        _StatCard(
+          title: 'Total Voters',
+          value: total.toString(),
+          icon: Icons.people,
+          iconBgColor: Colors.blue.withOpacity(0.2),
+          textColor: Colors.blue,
+          bg: bg,
+        ),
+        _StatCard(
+          title: 'Marked by You',
+          value: marked.toString(),
+          icon: Icons.verified_user,
+          iconBgColor: Colors.green.withOpacity(0.2),
+          textColor: Colors.green,
+          bg: bg,
+        ),
+        _StatCard(
+          title: 'Remaining',
+          value: remaining.toString(),
+          icon: Icons.pending_actions,
+          iconBgColor: Colors.orange.withOpacity(0.2),
+          textColor: Colors.orange,
+          bg: bg,
+        ),
       ],
     );
   }
@@ -550,17 +623,17 @@ class _StatCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.icon,
-    required this.primary,
+    required this.iconBgColor,
+    required this.textColor,
     required this.bg,
-    required this.textPrimary,
   });
 
   final String title;
   final String value;
   final IconData icon;
-  final Color primary; // kept for signature compatibility, not used
+  final Color iconBgColor;
+  final Color textColor;
   final Color bg;
-  final Color textPrimary;
 
   @override
   Widget build(BuildContext context) {
@@ -572,60 +645,34 @@ class _StatCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Semantics(
-          label: '$title: $value',
-          child: Stack(
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                // Use fixed small gaps instead of Spacer to avoid tight vertical pressure
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.all(10),
-                    child: const SizedBox.shrink(), // placeholder, replaced below
-                  ),
-                  const SizedBox(height: 10),
-                  // Scale number down if space is tight; keep single line
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      value,
-                      maxLines: 1,
-                      overflow: TextOverflow.fade,
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: Colors.blue,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: textPrimary,
-                    ),
-                  ),
-                ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: iconBgColor,
+                borderRadius: BorderRadius.circular(10),
               ),
-              Positioned.fill(
-                child: IgnorePointer(
-                  ignoring: true,
-                  child: Align(
-                    alignment: Alignment.topLeft,
-                    child: Icon(icon, color: Colors.blue, size: 24),
-                  ),
-                ),
+              padding: const EdgeInsets.all(12),
+              child: Icon(icon, color: textColor, size: 28),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              value,
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: textColor,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: textColor.withOpacity(0.7),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -770,7 +817,8 @@ class _VoterPanel extends StatelessWidget {
                     runSpacing: 8,
                     alignment: WrapAlignment.end,
                     children: [
-                      _CountPill(label: 'Total', value: total, primary: primary),
+                      // If values are dynamic, keep as is. But for static text:
+                      const _CountPill(label: 'Total', value: 0, primary: Colors.blue),
                       _CountPill(label: 'Marked', value: marked, primary: primary),
                       _CountPill(label: 'Remaining', value: remaining, primary: primary),
                     ],
@@ -835,22 +883,29 @@ class _VoterPanel extends StatelessWidget {
                 ),
               )
             else
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: voters.length,
-                separatorBuilder: (_, __) => Divider(color: dividerColor),
-                itemBuilder: (context, index) {
-                  final voter = voters[index];
-                  return _VoterTile(
-                    voter: voter,
-                    primary: primary,
-                    textPrimary: textPrimary,
-                    textSecondary: textSecondary,
-                    onTapMark: () => onMarkTap(voter),
-                  );
-                },
-              ),
+            // Wrap with Expanded or SizedBox for performance
+              SizedBox(
+                height: 400, // or any fixed height depending on your design
+                child: ListView.builder(
+                  itemCount: voters.length,
+                  itemBuilder: (context, index) {
+                    final voter = voters[index];
+                    return Column(
+                      children: [
+                        _VoterTile(
+                          voter: voter,
+                          primary: primary,
+                          textPrimary: textPrimary,
+                          textSecondary: textSecondary,
+                          onTapMark: () => onMarkTap(voter),
+                        ),
+                        if (index != voters.length - 1)
+                          Divider(color: dividerColor, height: 1),
+                      ],
+                    );
+                  },
+                ),
+              )
           ],
         ),
       ),
