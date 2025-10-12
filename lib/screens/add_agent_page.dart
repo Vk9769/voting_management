@@ -104,15 +104,6 @@ class _AddAgentPageState extends State<AddAgentPage> {
 
   void _togglePassword() => setState(() => _obscurePassword = !_obscurePassword);
 
-  void _generateUUID() {
-    // Simple 12-digit generator for demo purposes
-    final now = DateTime.now().microsecondsSinceEpoch.toString();
-    final digits = now.replaceAll(RegExp(r'[^0-9]'), '');
-    final uuid = (digits + '000000000000').substring(0, 12);
-    _uuidCtrl.text = uuid;
-    setState(() {});
-  }
-
   void _resetForm() {
     _formKey.currentState?.reset();
     _firstNameCtrl.clear();
@@ -279,50 +270,33 @@ class _AddAgentPageState extends State<AddAgentPage> {
                         const SizedBox(height: 12),
 
                         // UUID with generator
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _uuidCtrl,
-                                textInputAction: TextInputAction.next,
-                                maxLength: 12,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                  LengthLimitingTextInputFormatter(12),
-                                ],
-                                decoration: const InputDecoration(
-                                  labelText: 'Agent UUID (12 digits)',
-                                  prefixIcon: Icon(Icons.confirmation_number, color: primary),
-                                  border: OutlineInputBorder(),
-                                  counterText: '',
-                                ),
-                                validator: (v) {
-                                  if (v == null || v.trim().isEmpty) {
-                                    return 'UUID is required';
-                                  }
-                                  if (v.trim().length != 12 ||
-                                      !RegExp(r'^\d{12}$').hasMatch(v.trim())) {
-                                    return 'Enter 12 digits';
-                                  }
-                                  return null;
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              height: 56,
-                              child: OutlinedButton.icon(
-                                onPressed: _generateUUID,
-                                icon: const Icon(Icons.auto_awesome, color: primary),
-                                label: const Text('Generate', style: TextStyle(color: primary)),
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: primary, width: 1.25),
-                                ),
-                              ),
-                            ),
+                        // UUID (manual entry only)
+                        TextFormField(
+                          controller: _uuidCtrl,
+                          textInputAction: TextInputAction.next,
+                          maxLength: 12,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(12),
                           ],
+                          decoration: const InputDecoration(
+                            labelText: 'Agent UUID (12 digits)',
+                            prefixIcon: Icon(Icons.confirmation_number, color: primary),
+                            border: OutlineInputBorder(),
+                            counterText: '',
+                          ),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'UUID is required';
+                            }
+                            if (v.trim().length != 12 || !RegExp(r'^\d{12}$').hasMatch(v.trim())) {
+                              return 'Enter 12 digits';
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 12),
+
 
                         // Email
                         TextFormField(

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'login_page.dart';
+import 'view_allocate_polling_booth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
@@ -705,27 +706,58 @@ class _QuickActionsRow extends StatelessWidget {
       runSpacing: 12,
       alignment: WrapAlignment.spaceBetween,
       children: [
-        SizedBox(
-          width: wide ? 220 : double.infinity,
-          child: FilledButton.icon(
-            onPressed: onScan,
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('Scan Voter ID'),
-            style: FilledButton.styleFrom(
-              backgroundColor: primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        // --- View Allocated Booth + Scan Voter ID (as a column) ---
+        Column(
+          children: [
+            SizedBox(
+              width: wide ? 220 : double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => ViewAllocatePollingBoothPage()),
+                  );
+                },
+                icon: const Icon(Icons.location_on),
+                label: const Text('View Allocated Booth'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
             ),
-          ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: wide ? 220 : double.infinity,
+              child: FilledButton.icon(
+                onPressed: onScan,
+                icon: const Icon(Icons.qr_code_scanner),
+                label: const Text('Scan Voter ID'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
         ),
+
+        // --- Report Issue Button ---
         SizedBox(
           width: wide ? 220 : double.infinity,
           child: OutlinedButton.icon(
             onPressed: onReport,
             icon: Icon(Icons.report_gmailerrorred, color: primary),
-            label: Text('Report Issue', style: TextStyle(color: primary, fontWeight: FontWeight.w700)),
+            label: Text(
+              'Report Issue',
+              style: TextStyle(color: primary, fontWeight: FontWeight.w700),
+            ),
             style: OutlinedButton.styleFrom(
               side: BorderSide(color: primary, width: 1.25),
               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -733,11 +765,16 @@ class _QuickActionsRow extends StatelessWidget {
             ),
           ),
         ),
+
+        // --- Sync Button ---
         SizedBox(
           width: wide ? 240 : double.infinity,
           child: OutlinedButton.icon(
             onPressed: isSyncing ? null : onSync,
-            icon: Icon(isOffline ? Icons.cloud_off : Icons.cloud_done, color: isSyncing ? Colors.grey : primary),
+            icon: Icon(
+              isOffline ? Icons.cloud_off : Icons.cloud_done,
+              color: isSyncing ? Colors.grey : primary,
+            ),
             label: Text(
               isSyncing
                   ? 'Syncing...'
@@ -758,6 +795,7 @@ class _QuickActionsRow extends StatelessWidget {
         ),
       ],
     );
+
   }
 }
 

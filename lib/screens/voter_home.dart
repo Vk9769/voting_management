@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 class VoterHomePage extends StatefulWidget {
   const VoterHomePage({super.key});
@@ -9,135 +10,229 @@ class VoterHomePage extends StatefulWidget {
 }
 
 class _VoterHomePageState extends State<VoterHomePage> {
-  // Dummy voter data
-  final String voterName = "John Doe";
-  final String voterEmail = "john@example.com";
-  final bool hasVoted = true;
+  String voterName = '';
+  String voterEmail = '';
+  String voterId = '';
+  bool hasVoted = false;
 
-  // Dummy polling location
-  final LatLng pollingLocation = LatLng(37.42796133580664, -122.085749655962);
-  GoogleMapController? mapController;
+  @override
+  void initState() {
+    super.initState();
+    _loadVoterData();
+  }
 
-  void _onMapCreated(GoogleMapController controller) {
-    mapController = controller;
+  Future<void> _loadVoterData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      voterName = prefs.getString('user_name') ?? 'Unknown Voter';
+      voterEmail = prefs.getString('user_email') ?? 'Not Available';
+      voterId = prefs.getString('user_id') ?? 'N/A';
+      hasVoted = prefs.getBool('has_voted') ?? false;
+    });
+  }
+
+  void _markVote() async {
+    if (hasVoted) {
+      Fluttertoast.showToast(
+        msg: "You have already voted.",
+        backgroundColor: Colors.orange,
+      );
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('has_voted', true);
+
+    setState(() {
+      hasVoted = true;
+    });
+
+    Fluttertoast.showToast(
+      msg: "Vote successfully recorded!",
+      backgroundColor: Colors.green,
+    );
+  }
+
+  void _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF6A11CB), Color(0xFF2575FC)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        title: const Text("Voter Dashboard"),
+        backgroundColor: Colors.blue,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.red),
+            onPressed: () async {
+              bool? confirm = await showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text("Confirm Logout"),
+                  content: const Text("Are you sure you want to logout?"),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text("Cancel"),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text("Logout", style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirm == true) {
+                _logout();
+              }
+            },
           ),
-        ),
-        child: SafeArea(
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadVoterData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              // Header with voter info
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Colors.white,
-                      child: Icon(Icons.person, size: 50, color: Colors.blue),
+              // Profile Card
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      const CircleAvatar(
+                        radius: 35,
+                        backgroundImage: AssetImage('assets/user_avatar.png'),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              voterName,
+                              style: const TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              voterEmail,
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                            const SizedBox(height: 4),
+                            Text("Voter ID: $voterId"),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Voting Status
+              Card(
+                color: hasVoted ? Colors.green[50] : Colors.red[50],
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: ListTile(
+                  leading: Icon(
+                    hasVoted ? Icons.check_circle : Icons.cancel,
+                    color: hasVoted ? Colors.green : Colors.red,
+                    size: 35,
+                  ),
+                  title: Text(
+                    hasVoted
+                        ? "You have already voted"
+                        : "You have not voted yet",
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: hasVoted ? Colors.green[700] : Colors.red[700],
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(width: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          voterName,
-                          style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white),
-                        ),
-                        Text(
-                          voterEmail,
-                          style: const TextStyle(
-                              fontSize: 16, color: Colors.white70),
-                        ),
-                      ],
+                  ),
+                  subtitle: Text(
+                    hasVoted
+                        ? "Your vote has been successfully submitted."
+                        : "Please cast your vote below.",
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              // Vote Button
+              ElevatedButton.icon(
+                onPressed: hasVoted ? null : _markVote,
+                icon: const Icon(Icons.how_to_vote),
+                label: const Text(
+                  "Cast Your Vote",
+                  style: TextStyle(fontSize: 18),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Other Features
+              Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.person_search, color: Colors.blue),
+                      title: const Text("View Candidate List"),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+                      onTap: () {
+                        Fluttertoast.showToast(
+                            msg: "Candidate list coming soon");
+                      },
+                    ),
+                    const Divider(height: 0),
+                    ListTile(
+                      leading: const Icon(Icons.history, color: Colors.blue),
+                      title: const Text("Voting History"),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+                      onTap: () {
+                        Fluttertoast.showToast(msg: "Voting history coming soon");
+                      },
+                    ),
+                    const Divider(height: 0),
+                    ListTile(
+                      leading: const Icon(Icons.settings, color: Colors.blue),
+                      title: const Text("Settings"),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+                      onTap: () {
+                        Fluttertoast.showToast(msg: "Settings coming soon");
+                      },
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-
-              // Voting status card
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: hasVoted
-                          ? [Colors.greenAccent, Colors.green]
-                          : [Colors.redAccent, Colors.red],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      )
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.how_to_vote,
-                          color: Colors.white, size: 30),
-                      const SizedBox(width: 10),
-                      Text(
-                        hasVoted ? "Voted ✅" : "Not Voted ❌",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Map showing polling location
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: GoogleMap(
-                      onMapCreated: _onMapCreated,
-                      initialCameraPosition: CameraPosition(
-                        target: pollingLocation,
-                        zoom: 16,
-                      ),
-                      markers: {
-                        Marker(
-                          markerId: const MarkerId('polling_location'),
-                          position: pollingLocation,
-                          infoWindow:
-                          const InfoWindow(title: 'Polling Location'),
-                        ),
-                      },
-                      myLocationEnabled: true,
-                      myLocationButtonEnabled: true,
-                      zoomControlsEnabled: false,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
             ],
           ),
         ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'signup_page.dart';
+import 'voter_home.dart';
 import 'admin_dashboard.dart'; // import the dashboard page
 import 'agent_dashboard.dart'; // make sure this file exists
 import 'dart:convert';
@@ -111,9 +112,9 @@ class _LoginPageState extends State<LoginPage> {
                 MaterialPageRoute(builder: (context) => const AgentDashboard()),
               );
             } else if (userRole == "voter") {
-              Fluttertoast.showToast(
-                msg: "Voter login success (dashboard coming soon)",
-                backgroundColor: Colors.blue,
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const VoterHomePage()),
               );
             }
             else {
