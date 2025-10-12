@@ -264,34 +264,6 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(height: 15),
 
 
-                // Temporary Agent Login Button
-                SizedBox(height: 15),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // Navigate to Agent Dashboard
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (context) => const AgentDashboard()),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green, // distinguishable color
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text(
-                      "Agent Login",
-                      style: TextStyle(fontSize: 18, color: Colors.white),
-                    ),
-                  ),
-                ),
-
-
-
-
                 // Create Account Button
                 SizedBox(
                   width: double.infinity,

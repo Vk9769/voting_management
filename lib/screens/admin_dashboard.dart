@@ -1,5 +1,7 @@
 // admin_dashboard.dart
 import 'package:flutter/material.dart';
+import 'login_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -12,7 +14,9 @@ class AdminDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color primary = Theme.of(context).colorScheme.primary; // keep existing theme (blue)
+    final Color primary = Theme.of(
+      context,
+    ).colorScheme.primary; // keep existing theme (blue)
     final Color foreground = Colors.black87; // neutral text
     final Color cardBg = Colors.white; // neutral background
 
@@ -62,28 +66,32 @@ class AdminDashboard extends StatelessWidget {
                       title: 'Polling',
                       value: polls.toString(),
                       icon: Icons.how_to_vote,
-                      color: primary, // primary blue
+                      color: primary,
+                      // primary blue
                       background: cardBg,
                     ),
                     StatCard(
                       title: 'Agents',
                       value: agents.toString(),
                       icon: Icons.group,
-                      color: Colors.teal, // subtle accent within same cool family
+                      color: Colors.teal,
+                      // subtle accent within same cool family
                       background: cardBg,
                     ),
                     StatCard(
                       title: 'Voters',
                       value: voters.toString(),
                       icon: Icons.people,
-                      color: Colors.orange, // single warm accent
+                      color: Colors.orange,
+                      // single warm accent
                       background: cardBg,
                     ),
                     StatCard(
                       title: 'Reports',
                       value: reports.toString(),
                       icon: Icons.bar_chart,
-                      color: Colors.blueGrey, // neutral accent
+                      color: Colors.blueGrey,
+                      // neutral accent
                       background: cardBg,
                     ),
                   ],
@@ -157,8 +165,10 @@ class AdminDashboard extends StatelessWidget {
           DrawerHeader(
             decoration: BoxDecoration(color: Colors.blue),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center, // center vertically
-              crossAxisAlignment: CrossAxisAlignment.center, // center horizontally
+              mainAxisAlignment: MainAxisAlignment.center,
+              // center vertically
+              crossAxisAlignment: CrossAxisAlignment.center,
+              // center horizontally
               children: const [
                 CircleAvatar(
                   radius: 35,
@@ -197,10 +207,40 @@ class AdminDashboard extends StatelessWidget {
             title: const Text('Settings'),
             onTap: () {},
           ),
+
           ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('Logout'),
-            onTap: () => Navigator.pop(context),
+            onTap: () async {
+              final shouldLogout = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Logout'),
+                  content: const Text('Are you sure you want to log out?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Logout'),
+                    ),
+                  ],
+                ),
+              );
+
+              if (shouldLogout == true && context.mounted) {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.clear(); // 🔥 clears login session/token
+
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                      (route) => false,
+                );
+              }
+            },
           ),
         ],
       ),
@@ -228,9 +268,9 @@ class _SectionHeader extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
       ],
     );
@@ -369,7 +409,8 @@ class _ActionsRow extends StatelessWidget {
             icon: const Icon(Icons.person_add),
             label: const Text('Add Agent'),
             style: FilledButton.styleFrom(
-              backgroundColor: Colors.blue, // custom color
+              backgroundColor: Colors.blue,
+              // custom color
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
@@ -388,7 +429,8 @@ class _ActionsRow extends StatelessWidget {
             icon: const Icon(Icons.group),
             label: const Text('View Agent List'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.blue, // same accent color
+              foregroundColor: Colors.blue,
+              // same accent color
               side: BorderSide(color: Colors.blue, width: 1.25),
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
@@ -424,15 +466,9 @@ class _ActivityTile extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: _IconBadge(icon: icon, color: color),
-      title: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.w700),
-      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
       subtitle: Text(subtitle),
-      trailing: Text(
-        time,
-        style: TextStyle(color: Colors.grey.shade600),
-      ),
+      trailing: Text(time, style: TextStyle(color: Colors.grey.shade600)),
     );
   }
 }
@@ -455,11 +491,15 @@ class AdminProfileScreen extends StatelessWidget {
           children: const [
             CircleAvatar(radius: 50, child: Icon(Icons.person, size: 48)),
             SizedBox(height: 16),
-            Text('Admin Name',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            Text(
+              'Admin Name',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
             SizedBox(height: 6),
-            Text('admin@example.com',
-                style: TextStyle(fontSize: 16, color: Colors.grey)),
+            Text(
+              'admin@example.com',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
           ],
         ),
       ),
