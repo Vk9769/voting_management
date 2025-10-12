@@ -3,6 +3,10 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'signup_page.dart';
 import 'admin_dashboard.dart'; // import the dashboard page
 import 'agent_dashboard.dart'; // make sure this file exists
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 // Simple validators to replace 'validators' package
 bool isEmail(String input) {
@@ -27,36 +31,122 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   bool _obscurePassword = true;
 
-  void _login() {
+  void _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
       String identifier = _identifierController.text.trim();
       String password = _passwordController.text.trim();
 
-      String type;
-      if (isEmail(identifier)) {
-        type = 'email';
-      } else if (isNumeric(identifier) && identifier.length >= 10) {
-        type = 'phone';
-      } else {
-        type = 'uuid';
+      try {
+        // 🌐 Backend URL — adjust as per your setup
+        const String baseUrl = "https://voting-backend-6px8.onrender.com/api/auth"; // Android emulator localhost
+
+        // Step 1️⃣ Login Request
+        final loginResponse = await http.post(
+          Uri.parse("$baseUrl/login"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({"identifier": identifier, "password": password}),
+        );
+
+        final loginData = jsonDecode(loginResponse.body);
+
+        if (loginResponse.statusCode == 200) {
+          String token = loginData["token"];
+          var user = loginData["user"];
+
+          // Save token & user info locally
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setString("auth_token", token);
+          await prefs.setString("user_id", user["id"]);
+          await prefs.setString("user_email", user["email"]);
+
+          Future<void> saveLogin(String token, String role) async {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('token', token);
+            await prefs.setString('role', role);
+          }
+
+          Fluttertoast.showToast(
+            msg: "Login successful",
+            backgroundColor: Colors.green,
+            textColor: Colors.white,
+          );
+
+          // Step 2️⃣ Fetch Roles using token
+          final rolesResponse = await http.get(
+            Uri.parse("$baseUrl/roles"),
+            headers: {
+              "Authorization": "Bearer $token",
+              "Content-Type": "application/json"
+            },
+          );
+
+          if (rolesResponse.statusCode == 200) {
+            final rolesData = jsonDecode(rolesResponse.body);
+            List roles = rolesData["roles"];
+
+            if (roles.isEmpty) {
+              Fluttertoast.showToast(
+                msg: "No role assigned to this user",
+                backgroundColor: Colors.orange,
+              );
+              return;
+            }
+
+            String userRole = roles.first.toLowerCase(); // pick the first assigned role
+
+            // Save token & role locally
+            await saveLogin(token, userRole);
+
+            // Step 3️⃣ Redirect Based on Role
+            if (userRole == "admin") {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const AdminDashboard()),
+              );
+            } else if (userRole == "agent") {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const AgentDashboard()),
+              );
+            } else if (userRole == "voter") {
+              Fluttertoast.showToast(
+                msg: "Voter login success (dashboard coming soon)",
+                backgroundColor: Colors.blue,
+              );
+            }
+            else {
+              Fluttertoast.showToast(
+                msg: "Unknown role: $userRole",
+                backgroundColor: Colors.red,
+              );
+            }
+          } else {
+            Fluttertoast.showToast(
+              msg: "Failed to fetch roles",
+              backgroundColor: Colors.red,
+            );
+          }
+        } else {
+          Fluttertoast.showToast(
+            msg: loginData["error"] ?? "Invalid credentials",
+            backgroundColor: Colors.red,
+            textColor: Colors.white,
+          );
+        }
+      } catch (e) {
+        Fluttertoast.showToast(
+          msg: "Error: ${e.toString()}",
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+        );
+      } finally {
+        setState(() => _isLoading = false);
       }
-
-      Fluttertoast.showToast(
-          msg: "Logging in using $type...",
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.BOTTOM);
-
-      setState(() => _isLoading = false);
-
-      // Navigate to Admin Dashboard
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const AdminDashboard()),
-      );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

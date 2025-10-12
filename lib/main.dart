@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'screens/login_page.dart'; // <-- import your LoginPage here
+import 'package:shared_preferences/shared_preferences.dart';
+import 'screens/login_page.dart';
+import 'screens/admin_dashboard.dart'; // Example dashboard
+import 'screens/agent_dashboard.dart'; // Example agent dashboard
 
 void main() {
   runApp(const MyApp());
@@ -20,7 +23,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Splash screen with logo
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -33,17 +35,47 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
+    checkLoginStatus();
+  }
+
+  Future<void> checkLoginStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token'); // token saved after login
+    // You can also store role, e.g., 'admin' or 'agent'
+    final role = prefs.getString('role');
+
     Timer(const Duration(seconds: 1), () {
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (_, __, ___) => const WelcomePage(),
-          transitionsBuilder: (_, animation, __, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          transitionDuration: const Duration(milliseconds: 800),
-        ),
-      );
+      if (token != null && token.isNotEmpty) {
+        // Auto-login: Navigate to dashboard based on role
+        Widget dashboard;
+        if (role == 'admin') {
+          dashboard = const AdminDashboard();
+        } else if (role == 'agent') {
+          dashboard = const AgentDashboard();
+        } else {
+          dashboard = const WelcomePage(); // fallback
+        }
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (_, __, ___) => dashboard,
+            transitionsBuilder: (_, animation, __, child) =>
+                FadeTransition(opacity: animation, child: child),
+            transitionDuration: const Duration(milliseconds: 800),
+          ),
+        );
+      } else {
+        // First-time user -> WelcomePage
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (_, __, ___) => const WelcomePage(),
+            transitionsBuilder: (_, animation, __, child) =>
+                FadeTransition(opacity: animation, child: child),
+            transitionDuration: const Duration(milliseconds: 800),
+          ),
+        );
+      }
     });
   }
 
@@ -77,6 +109,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 }
+
 
 // Slide model
 class Slide {
