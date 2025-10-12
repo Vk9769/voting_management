@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'login_page.dart';
 import 'add_polling_booth_page.dart';
 import 'view_all_booth.dart';
+import 'add_agent_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminDashboard extends StatelessWidget {
@@ -417,7 +418,12 @@ class _ActionsRow extends StatelessWidget {
         SizedBox(
           width: wide ? 260 : double.infinity,
           child: FilledButton.icon(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AddAgentPage()),
+              );
+            },
             icon: const Icon(Icons.person_add),
             label: const Text('Add Agent'),
             style: FilledButton.styleFrom(
