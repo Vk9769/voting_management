@@ -5,23 +5,78 @@ import 'add_polling_booth_page.dart';
 import 'view_all_booth.dart';
 import 'add_agent_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-class AdminDashboard extends StatelessWidget {
+class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
 
-  // Sample statsx
-  final int polls = 12;
-  final int agents = 25;
-  final int voters = 500;
-  final int reports = 3;
+  @override
+  State<AdminDashboard> createState() => _AdminDashboardState();
+}
+
+class _AdminDashboardState extends State<AdminDashboard> {
+  int polls = 0;
+  int agents = 0;
+  int voters = 0;
+  int reports = 0;
+
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchDashboardStats();
+  }
+
+  Future<void> fetchDashboardStats() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? '';
+
+      final response = await http.get(
+        Uri.parse('https://voting-backend-6px8.onrender.com/api/admin/dashboard'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('📊 Dashboard API Response: ${response.body}'); // Debug log
+
+      if (response.statusCode == 200) {
+        final resBody = jsonDecode(response.body);
+
+        if (resBody['success'] == true && resBody['data'] != null) {
+          final data = resBody['data'];
+
+          setState(() {
+            polls = int.tryParse(data['polls'].toString()) ?? 0;
+            agents = int.tryParse(data['agents'].toString()) ?? 0;
+            voters = int.tryParse(data['voters'].toString()) ?? 0;
+            reports = int.tryParse(data['reports'].toString()) ?? 0;
+            isLoading = false;
+          });
+        } else {
+          throw Exception('Invalid response format');
+        }
+      } else {
+        throw Exception('Failed to load dashboard stats');
+      }
+    } catch (e) {
+      print('⚠️ Error fetching dashboard stats: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
-    final Color primary = Theme.of(
-      context,
-    ).colorScheme.primary; // keep existing theme (blue)
-    final Color foreground = Colors.black87; // neutral text
-    final Color cardBg = Colors.white; // neutral background
+    final Color primary = Theme.of(context).colorScheme.primary;
+    final Color foreground = Colors.black87;
+    final Color cardBg = Colors.white;
 
     return Scaffold(
       drawer: _buildDrawer(context, primary),
@@ -31,7 +86,9 @@ class AdminDashboard extends StatelessWidget {
         centerTitle: true,
         elevation: 2,
       ),
-      body: LayoutBuilder(
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : LayoutBuilder(
         builder: (context, constraints) {
           final int columns = constraints.maxWidth >= 1200
               ? 4
@@ -47,14 +104,15 @@ class AdminDashboard extends StatelessWidget {
                 // Header
                 Text(
                   'Overview',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  style:
+                  Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: foreground,
                   ),
                 ),
                 const SizedBox(height: 16),
 
-                // Responsive KPI Grid
+                // KPI Grid
                 GridView(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: columns,
@@ -70,7 +128,6 @@ class AdminDashboard extends StatelessWidget {
                       value: polls.toString(),
                       icon: Icons.how_to_vote,
                       color: primary,
-                      // primary blue
                       background: cardBg,
                     ),
                     StatCard(
@@ -78,7 +135,6 @@ class AdminDashboard extends StatelessWidget {
                       value: agents.toString(),
                       icon: Icons.group,
                       color: Colors.teal,
-                      // subtle accent within same cool family
                       background: cardBg,
                     ),
                     StatCard(
@@ -86,7 +142,6 @@ class AdminDashboard extends StatelessWidget {
                       value: voters.toString(),
                       icon: Icons.people,
                       color: Colors.orange,
-                      // single warm accent
                       background: cardBg,
                     ),
                     StatCard(
@@ -94,7 +149,6 @@ class AdminDashboard extends StatelessWidget {
                       value: reports.toString(),
                       icon: Icons.bar_chart,
                       color: Colors.blueGrey,
-                      // neutral accent
                       background: cardBg,
                     ),
                   ],
@@ -399,7 +453,7 @@ class _ActionsRow extends StatelessWidget {
               context,
               MaterialPageRoute(builder: (_) => ViewAllBoothsPage()),
             );
-              },
+            },
             icon: const Icon(Icons.location_on),
             label: const Text('View Polling Booths'),
             style: OutlinedButton.styleFrom(
