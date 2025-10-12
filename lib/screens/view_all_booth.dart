@@ -1,12 +1,15 @@
-// Uses consistent Colors.blue accents, card-based layout, better spacing and typography, rounded map, no new functionality added.
-
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geocoding/geocoding.dart';
 
 // Booth model
 class Booth {
   final String name;
-  final String address;
+  String address; // mutable to store reverse geocoded address
   final LatLng location;
   final double radius;
 
@@ -18,137 +21,208 @@ class Booth {
   });
 }
 
-// Demo booths (unchanged feature)
-final List<Booth> demoBooths = [
-  Booth(
-    name: "Booth 1",
-    address: "Ward 1, Street 5, City",
-    location: LatLng(12.9716, 77.5946),
-    radius: 50,
-  ),
-  Booth(
-    name: "Booth 2",
-    address: "Ward 2, Street 9, City",
-    location: LatLng(12.9726, 77.5956),
-    radius: 60,
-  ),
-  Booth(
-    name: "Booth 3",
-    address: "Ward 3, Street 12, City",
-    location: LatLng(12.9736, 77.5966),
-    radius: 70,
-  ),
-];
-
 // Page showing all booths
-class ViewAllBoothsPage extends StatelessWidget {
+class ViewAllBoothsPage extends StatefulWidget {
   const ViewAllBoothsPage({super.key});
 
+  @override
+  State<ViewAllBoothsPage> createState() => _ViewAllBoothsPageState();
+}
+
+class _ViewAllBoothsPageState extends State<ViewAllBoothsPage> {
+  List<Booth> booths = [];
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchBooths();
+  }
+
+  Future<void> _fetchBooths() async {
+    setState(() => loading = true);
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    if (token == null) {
+      Fluttertoast.showToast(msg: "Please log in first");
+      setState(() => loading = false);
+      return;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('https://voting-backend-6px8.onrender.com/api/admin/booths'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['booths'] != null) {
+          final List<dynamic> boothsJson = data['booths'];
+
+          final List<Booth> fetchedBooths = boothsJson.map((b) {
+            final loc = LatLng(
+              (b['latitude'] ?? 0).toDouble(),
+              (b['longitude'] ?? 0).toDouble(),
+            );
+            return Booth(
+              name: b['name'] ?? '',
+              address: '', // will fill with reverse geocoding
+              location: loc,
+              radius: (b['radius_meters'] ?? 50).toDouble(),
+            );
+          }).toList();
+
+          // Reverse geocode to get addresses
+          await Future.wait(fetchedBooths.map((b) async {
+            try {
+              final placemarks = await placemarkFromCoordinates(
+                  b.location.latitude, b.location.longitude);
+              if (placemarks.isNotEmpty) {
+                final place = placemarks.first;
+                b.address = [
+                  place.street,
+                  place.locality,
+                  place.postalCode,
+                  place.country
+                ].where((e) => e != null && e.isNotEmpty).join(', ');
+              } else {
+                b.address = "Address not found";
+              }
+            } catch (_) {
+              b.address = "Failed to fetch address";
+            }
+          }));
+
+          if (!mounted) return;
+          setState(() {
+            booths = fetchedBooths;
+          });
+        } else {
+          Fluttertoast.showToast(msg: "No booths found");
+        }
+      } else {
+        Fluttertoast.showToast(msg: "Failed to fetch booths");
+      }
+    } catch (e) {
+      Fluttertoast.showToast(msg: "Error fetching booths");
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+// Inside _ViewAllBoothsPageState's build method
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('All Polling Booths'),
-        backgroundColor: Colors.blue, // keep blue theme
+        backgroundColor: Colors.blue,
         centerTitle: true,
         elevation: 2,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Subtle header card for context
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                child: Row(
-                  children: [
-                    _IconBadge(icon: Icons.how_to_vote),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Select a booth to view details',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
+      body: loading
+          ? const Center(child: CircularProgressIndicator(color: Colors.blue))
+          : RefreshIndicator(
+        color: Colors.blue,
+        onRefresh: _fetchBooths, // pull-to-refresh triggers fetch
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      const _IconBadge(icon: Icons.how_to_vote),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Select a booth to view details',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: Colors.blue.withOpacity(0.2)),
-                      ),
-                      child: Text(
-                        '${demoBooths.length} total',
-                        style: const TextStyle(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.w700,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                        ),
+                        child: Text(
+                          '${booths.length} total',
+                          style: const TextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Booth list (features unchanged)
-            Expanded(
-              child: ListView.separated(
-                itemCount: demoBooths.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  final booth = demoBooths[index];
-                  return Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      leading: _IconBadge(icon: Icons.place),
-                      title: Text(
-                        booth.name,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(), // ensures pull works even if list is short
+                  itemCount: booths.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final booth = booths[index];
+                    return Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      subtitle: Text(
-                        booth.address,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        leading: const _IconBadge(icon: Icons.place),
+                        title: Text(
+                          booth.name,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: Text(
+                          booth.address,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 18, color: Colors.blue),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BoothDetailPage(booth: booth),
+                            ),
+                          );
+                        },
                       ),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 18, color: Colors.blue),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => BoothDetailPage(booth: booth),
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// Booth details page
+// Booth details page (unchanged)
 class BoothDetailPage extends StatelessWidget {
   final Booth booth;
-
   const BoothDetailPage({super.key, required this.booth});
 
   @override
@@ -160,7 +234,7 @@ class BoothDetailPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(booth.name),
-        backgroundColor: Colors.blue, // keep blue theme
+        backgroundColor: Colors.blue,
         centerTitle: true,
         elevation: 2,
       ),
@@ -169,7 +243,6 @@ class BoothDetailPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Booth info card (features unchanged; UI improved)
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -178,7 +251,7 @@ class BoothDetailPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _SectionHeader(title: 'Booth Details', icon: Icons.info),
+                    const _SectionHeader(title: 'Booth Details', icon: Icons.info),
                     const SizedBox(height: 8),
                     _InfoRow(
                       icon: Icons.how_to_vote,
@@ -201,10 +274,7 @@ class BoothDetailPage extends StatelessWidget {
                 ),
               ),
             ),
-
             const SizedBox(height: 12),
-
-            // Map card with marker + circle (unchanged functionality)
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -213,7 +283,7 @@ class BoothDetailPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _SectionHeader(title: 'Location', icon: Icons.map),
+                    const _SectionHeader(title: 'Location', icon: Icons.map),
                     const SizedBox(height: 8),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
@@ -241,7 +311,6 @@ class BoothDetailPage extends StatelessWidget {
                               strokeWidth: 2,
                             ),
                           },
-                          // Keep controls minimal; these do not change the features
                           zoomControlsEnabled: true,
                           zoomGesturesEnabled: true,
                           scrollGesturesEnabled: true,
@@ -255,7 +324,7 @@ class BoothDetailPage extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        _LegendDot(color: Colors.blue),
+                        const _LegendDot(color: Colors.blue),
                         const SizedBox(width: 8),
                         const Text(
                           'Booth radius shown on map',
@@ -274,11 +343,9 @@ class BoothDetailPage extends StatelessWidget {
   }
 }
 
-// Small reusable pieces
-
+// Reusable components
 class _IconBadge extends StatelessWidget {
   const _IconBadge({required this.icon});
-
   final IconData icon;
 
   @override
@@ -296,7 +363,6 @@ class _IconBadge extends StatelessWidget {
 
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.title, required this.icon});
-
   final String title;
   final IconData icon;
 
@@ -319,7 +385,6 @@ class _SectionHeader extends StatelessWidget {
 
 class _InfoRow extends StatelessWidget {
   const _InfoRow({required this.icon, required this.label, required this.value});
-
   final IconData icon;
   final String label;
   final String value;
@@ -334,10 +399,7 @@ class _InfoRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                  )),
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: 2),
               Text(value),
             ],

@@ -5,6 +5,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:flutter/foundation.dart' show Factory;
 import 'package:flutter/gestures.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AddPollingBoothPage extends StatefulWidget {
   const AddPollingBoothPage({super.key});
@@ -15,7 +19,7 @@ class AddPollingBoothPage extends StatefulWidget {
 
 class Booth {
   final String name;
-  final String address;
+  String address; // mutable now
   final LatLng location;
   final double radius;
 
@@ -45,8 +49,11 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
   @override
   void initState() {
     super.initState();
-    _setInitialLocation();
+    _setInitialLocation().then((_) {
+      _fetchSavedBooths(); // Fetch saved booths after map initialized
+    });
   }
+
 
   @override
   void dispose() {
@@ -238,33 +245,143 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
     }
   }
 
-  void _saveBooth() {
+
+  Future<void> _saveBooth() async {
     if (!_formKey.currentState!.validate()) return;
     if (selectedLocation == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please pick a location on the map')),
-      );
+      Fluttertoast.showToast(msg: 'Please pick a location on the map');
       return;
     }
 
-    final newBooth = Booth(
-      name: _nameCtrl.text.trim(),
-      address: _addressCtrl.text.trim(),
-      location: selectedLocation!,
-      radius: radius,
-    );
+    final name = _nameCtrl.text.trim();
+    final lat = selectedLocation!.latitude;
+    final lng = selectedLocation!.longitude;
 
-    setState(() {
-      savedBooths.add(newBooth);
-      _nameCtrl.clear();
-      _addressCtrl.clear();
-      radius = 50;
-    });
+    print('Saving booth: name=$name, lat=$lat, lng=$lng, radius=$radius');
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Polling Booth Added!')),
-    );
+    if (name.isEmpty || lat == null || lng == null) {
+      Fluttertoast.showToast(msg: "Name, latitude, and longitude are required");
+      return;
+    }
+
+    final boothData = {
+      'name': _nameCtrl.text.trim(),
+      'lat': selectedLocation!.latitude,
+      'lng': selectedLocation!.longitude,
+      'radius': radius,
+    };
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    if (token == null) {
+      Fluttertoast.showToast(msg: "Please log in first");
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://voting-backend-6px8.onrender.com/api/admin/booths'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(boothData),
+      );
+
+      print('Response: ${response.statusCode} ${response.body}');
+
+      final jsonResp = jsonDecode(response.body);
+      if ((response.statusCode == 201 || response.statusCode == 200) &&
+          jsonResp['success'] == true) {
+        Fluttertoast.showToast(msg: "Polling Booth Added!");
+        _fetchSavedBooths(); // refresh booths after adding
+        // Update state if needed
+      } else {
+        Fluttertoast.showToast(msg: jsonResp['message'] ?? "Failed to add booth");
+      }
+    } catch (e) {
+      Fluttertoast.showToast(msg: "Error connecting to server");
+    }
   }
+
+  Future<void> _fetchSavedBooths() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    if (token == null) {
+      Fluttertoast.showToast(msg: "Please log in first");
+      return;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('https://voting-backend-6px8.onrender.com/api/admin/booths'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        if (data['success'] == true && data['booths'] != null) {
+          final List<dynamic> boothsJson = data['booths'];
+
+          // Map backend JSON to Booth objects
+          final List<Booth> booths = boothsJson.map((b) {
+            final loc = LatLng(
+              (b['latitude'] ?? 0).toDouble(),
+              (b['longitude'] ?? 0).toDouble(),
+            );
+            return Booth(
+              name: b['name'] ?? '',
+              address: '', // start empty, will fill with reverse geocoding
+              location: loc,
+              radius: (b['radius_meters'] ?? 50).toDouble(),
+            );
+          }).toList();
+
+          // Reverse geocode each booth to fill address
+          await Future.wait(booths.map((b) async {
+            try {
+              final placemarks =
+              await placemarkFromCoordinates(b.location.latitude, b.location.longitude);
+              if (placemarks.isNotEmpty) {
+                final place = placemarks.first;
+                b.address = [
+                  place.street,
+                  place.locality,
+                  place.postalCode,
+                  place.country
+                ].where((e) => e != null && e.isNotEmpty).join(', ');
+              } else {
+                b.address = "Address not found";
+              }
+            } catch (e) {
+              b.address = "Failed to fetch address";
+            }
+          }));
+
+          if (!mounted) return;
+          setState(() {
+            savedBooths.clear();
+            savedBooths.addAll(booths);
+          });
+        } else {
+          Fluttertoast.showToast(msg: "No booths found");
+        }
+      } else {
+        Fluttertoast.showToast(msg: "Failed to fetch booths");
+      }
+    } catch (e) {
+      Fluttertoast.showToast(msg: "Error fetching booths");
+    }
+  }
+
+
+
 
   @override
   Widget build(BuildContext context) {
