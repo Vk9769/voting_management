@@ -19,7 +19,7 @@ class AddPollingBoothPage extends StatefulWidget {
 
 class Booth {
   final String name;
-  String address; // mutable now
+  String address;
   final LatLng location;
   final double radius;
 
@@ -31,29 +31,69 @@ class Booth {
   });
 }
 
+class LocationData {
+  static final Map<String, List<String>> states = {
+    'State 1': ['District 1', 'District 2', 'District 3'],
+    'State 2': ['District 4', 'District 5'],
+    'State 3': ['District 6', 'District 7', 'District 8'],
+  };
+
+  static final Map<String, List<String>> districts = {
+    'District 1': ['City 1', 'City 2'],
+    'District 2': ['City 3', 'City 4', 'City 5'],
+    'District 3': ['City 6'],
+    'District 4': ['City 7', 'City 8'],
+    'District 5': ['City 9'],
+    'District 6': ['City 10', 'City 11'],
+    'District 7': ['City 12'],
+    'District 8': ['City 13', 'City 14'],
+  };
+
+  static final Map<String, List<String>> areas = {
+    'City 1': ['Area 1', 'Area 2'],
+    'City 2': ['Area 3'],
+    'City 3': ['Area 4', 'Area 5'],
+    'City 4': ['Area 6'],
+    'City 5': ['Area 7', 'Area 8'],
+    'City 6': ['Area 9'],
+    'City 7': ['Area 10', 'Area 11'],
+    'City 8': ['Area 12'],
+    'City 9': ['Area 13'],
+    'City 10': ['Area 14', 'Area 15'],
+    'City 11': ['Area 16'],
+    'City 12': ['Area 17'],
+    'City 13': ['Area 18', 'Area 19'],
+    'City 14': ['Area 20'],
+  };
+}
+
 class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameCtrl = TextEditingController();
   final TextEditingController _addressCtrl = TextEditingController();
 
+  String? selectedState;
+  String? selectedDistrict;
+  String? selectedCity;
+  String? selectedArea;
+
   LatLng? selectedLocation;
   GoogleMapController? _mapController;
 
-  double radius = 50; // default radius
+  double radius = 50;
   final List<Booth> savedBooths = [];
 
   bool _initializing = true;
   bool _geocoding = false;
-  Timer? _debounce; // debounce for forward geocoding (optional, on-demand)
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     _setInitialLocation().then((_) {
-      _fetchSavedBooths(); // Fetch saved booths after map initialized
+      _fetchSavedBooths();
     });
   }
-
 
   @override
   void dispose() {
@@ -114,10 +154,8 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
         _initializing = false;
       });
 
-      // Reverse geocode initial position
       await _fetchAddress(ll.latitude, ll.longitude);
 
-      // Animate camera if map already ready
       if (_mapController != null) {
         await _mapController!.animateCamera(
           CameraUpdate.newCameraPosition(
@@ -141,7 +179,6 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
       final placemarks = await placemarkFromCoordinates(lat, lng);
       if (placemarks.isNotEmpty) {
         final place = placemarks.first;
-        // filter out null/empty parts
         String address = [
           place.name,
           place.street,
@@ -205,7 +242,6 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
           ),
         );
 
-        // Keep address field consistent with reverse geocoding
         await _fetchAddress(ll.latitude, ll.longitude);
       } else {
         if (!mounted) return;
@@ -235,6 +271,10 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
       _nameCtrl.clear();
       _addressCtrl.clear();
       radius = 50;
+      selectedState = null;
+      selectedDistrict = null;
+      selectedCity = null;
+      selectedArea = null;
     });
     if (selectedLocation != null) {
       _mapController?.animateCamera(
@@ -244,7 +284,6 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
       );
     }
   }
-
 
   Future<void> _saveBooth() async {
     if (!_formKey.currentState!.validate()) return;
@@ -295,8 +334,7 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
       if ((response.statusCode == 201 || response.statusCode == 200) &&
           jsonResp['success'] == true) {
         Fluttertoast.showToast(msg: "Polling Booth Added!");
-        _fetchSavedBooths(); // refresh booths after adding
-        // Update state if needed
+        _fetchSavedBooths();
       } else {
         Fluttertoast.showToast(msg: jsonResp['message'] ?? "Failed to add booth");
       }
@@ -329,7 +367,6 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
         if (data['success'] == true && data['booths'] != null) {
           final List<dynamic> boothsJson = data['booths'];
 
-          // Map backend JSON to Booth objects
           final List<Booth> booths = boothsJson.map((b) {
             final loc = LatLng(
               (b['latitude'] ?? 0).toDouble(),
@@ -337,13 +374,12 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
             );
             return Booth(
               name: b['name'] ?? '',
-              address: '', // start empty, will fill with reverse geocoding
+              address: '',
               location: loc,
               radius: (b['radius_meters'] ?? 50).toDouble(),
             );
           }).toList();
 
-          // Reverse geocode each booth to fill address
           await Future.wait(booths.map((b) async {
             try {
               final placemarks =
@@ -380,9 +416,6 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
     }
   }
 
-
-
-
   @override
   Widget build(BuildContext context) {
     const blue = Colors.blue;
@@ -411,6 +444,150 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                     key: _formKey,
                     child: Column(
                       children: [
+                        DropdownButtonFormField<String>(
+                          value: selectedState,
+                          decoration: InputDecoration(
+                            labelText: 'State',
+                            prefixIcon: const Icon(Icons.location_on, color: blue),
+                            labelStyle: const TextStyle(color: blue),
+                            enabledBorder: const OutlineInputBorder(
+                              borderSide: BorderSide(color: blue),
+                            ),
+                            focusedBorder: const OutlineInputBorder(
+                              borderSide: BorderSide(color: blue, width: 2),
+                            ),
+                          ),
+                          items: LocationData.states.keys
+                              .map((state) => DropdownMenuItem(
+                            value: state,
+                            child: Text(state),
+                          ))
+                              .toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              selectedState = value;
+                              selectedDistrict = null;
+                              selectedCity = null;
+                              selectedArea = null;
+                            });
+                          },
+                          validator: (v) {
+                            if (v == null || v.isEmpty) {
+                              return 'Please select a state';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        if (selectedState != null)
+                          DropdownButtonFormField<String>(
+                            value: selectedDistrict,
+                            decoration: InputDecoration(
+                              labelText: 'District',
+                              prefixIcon: const Icon(Icons.location_city, color: blue),
+                              labelStyle: const TextStyle(color: blue),
+                              enabledBorder: const OutlineInputBorder(
+                                borderSide: BorderSide(color: blue),
+                              ),
+                              focusedBorder: const OutlineInputBorder(
+                                borderSide: BorderSide(color: blue, width: 2),
+                              ),
+                            ),
+                            items: (LocationData.states[selectedState] ?? [])
+                                .map((district) => DropdownMenuItem(
+                              value: district,
+                              child: Text(district),
+                            ))
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                selectedDistrict = value;
+                                selectedCity = null;
+                                selectedArea = null;
+                              });
+                            },
+                            validator: (v) {
+                              if (v == null || v.isEmpty) {
+                                return 'Please select a district';
+                              }
+                              return null;
+                            },
+                          ),
+                        if (selectedDistrict != null)
+                          const SizedBox(height: 16),
+
+                        if (selectedDistrict != null)
+                          DropdownButtonFormField<String>(
+                            value: selectedCity,
+                            decoration: InputDecoration(
+                              labelText: 'City',
+                              prefixIcon: const Icon(Icons.apartment, color: blue),
+                              labelStyle: const TextStyle(color: blue),
+                              enabledBorder: const OutlineInputBorder(
+                                borderSide: BorderSide(color: blue),
+                              ),
+                              focusedBorder: const OutlineInputBorder(
+                                borderSide: BorderSide(color: blue, width: 2),
+                              ),
+                            ),
+                            items: (LocationData.districts[selectedDistrict] ?? [])
+                                .map((city) => DropdownMenuItem(
+                              value: city,
+                              child: Text(city),
+                            ))
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                selectedCity = value;
+                                selectedArea = null;
+                              });
+                            },
+                            validator: (v) {
+                              if (v == null || v.isEmpty) {
+                                return 'Please select a city';
+                              }
+                              return null;
+                            },
+                          ),
+                        if (selectedCity != null)
+                          const SizedBox(height: 16),
+
+                        if (selectedCity != null)
+                          DropdownButtonFormField<String>(
+                            value: selectedArea,
+                            decoration: InputDecoration(
+                              labelText: 'Area',
+                              prefixIcon: const Icon(Icons.home, color: blue),
+                              labelStyle: const TextStyle(color: blue),
+                              enabledBorder: const OutlineInputBorder(
+                                borderSide: BorderSide(color: blue),
+                              ),
+                              focusedBorder: const OutlineInputBorder(
+                                borderSide: BorderSide(color: blue, width: 2),
+                              ),
+                            ),
+                            items: (LocationData.areas[selectedCity] ?? [])
+                                .map((area) => DropdownMenuItem(
+                              value: area,
+                              child: Text(area),
+                            ))
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                selectedArea = value;
+                              });
+                            },
+                            validator: (v) {
+                              if (v == null || v.isEmpty) {
+                                return 'Please select an area';
+                              }
+                              return null;
+                            },
+                          ),
+                        if (selectedCity != null)
+                          const SizedBox(height: 16),
+
                         // Booth Name
                         TextFormField(
                           controller: _nameCtrl,
@@ -543,7 +720,6 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                         myLocationButtonEnabled: false,
                         myLocationEnabled: false,
                         markers: {
-                          // Current booth (blue)
                           if (selectedLocation != null)
                             Marker(
                               markerId: const MarkerId('current'),
@@ -556,7 +732,6 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                                 snippet: _addressCtrl.text,
                               ),
                             ),
-                          // Saved booths (green)
                           ...savedBooths.map(
                                 (b) => Marker(
                               markerId: MarkerId(b.name),
@@ -569,7 +744,6 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                           ),
                         },
                         circles: {
-                          // Current booth radius (blue)
                           if (selectedLocation != null)
                             Circle(
                               circleId: const CircleId('currentRadius'),
@@ -579,7 +753,6 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                               strokeColor: blue,
                               strokeWidth: 2,
                             ),
-                          // Saved booths radius (green)
                           ...savedBooths.map(
                                 (b) => Circle(
                               circleId: CircleId(b.name),
@@ -649,7 +822,7 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
 
               const SizedBox(height: 16),
 
-              // Optional: Saved booths list (keeps original features and adds helpful review)
+              // Saved booths list
               if (savedBooths.isNotEmpty)
                 Card(
                   elevation: 2,

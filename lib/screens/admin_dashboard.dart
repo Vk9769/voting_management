@@ -7,6 +7,8 @@ import 'add_agent_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'view_all_agents.dart';
+
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -497,13 +499,17 @@ class _ActionsRow extends StatelessWidget {
         SizedBox(
           width: wide ? 260 : double.infinity,
           child: OutlinedButton.icon(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ViewAllAgentsPage()),
+              );
+            },
             icon: const Icon(Icons.group),
             label: const Text('View Agent List'),
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.blue,
-              // same accent color
-              side: BorderSide(color: Colors.blue, width: 1.25),
+              side: const BorderSide(color: Colors.blue, width: 1.25),
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),

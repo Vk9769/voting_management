@@ -7,6 +7,7 @@ import 'agent_profile_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'agent_report.dart';
 import 'agent_messages_page.dart';
+import 'agent_news_page.dart';
 
 
 class AgentDashboard extends StatefulWidget {
@@ -878,7 +879,12 @@ class _QuickActionsRow extends StatelessWidget {
         SizedBox(
           width: wide ? 220 : double.infinity,
           child: FilledButton.icon(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AgentNewsPage()),
+              );
+            },
             icon: const Icon(Icons.newspaper),
             label: const Text('Daily News'),
             style: FilledButton.styleFrom(
