@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'login_page.dart';
 import 'view_allocate_polling_booth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'agent_profile_page.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'agent_report.dart';
 
 
 class AgentDashboard extends StatefulWidget {
@@ -14,45 +17,99 @@ class AgentDashboard extends StatefulWidget {
 }
 
 class _AgentDashboardState extends State<AgentDashboard> {
-  // Use ValueNotifier instead of setState every second
   final ValueNotifier<Duration> onShiftNotifier = ValueNotifier(Duration.zero);
 
-  // Agent and booth info (replace with real data)
-  final String agentName = 'A. Khan';
-  final String boothName = 'Booth #13';
-  final String boothWard = 'Ward 4';
-  final String boothCode = 'BTH-13-W4';
+  String agentName = '';
+  String boothName = '';
+  String boothWard = '';
+  String boothCode = '';
+
+  int _selectedIndex = 0;
 
   // Shift tracking
   final DateTime shiftStart = DateTime.now().subtract(const Duration(minutes: 37));
   late Timer _timer;
 
-  // Sync state
   bool isSyncing = false;
   bool isOffline = false;
 
-  // Voter data (in-memory for demo)
   late List<Voter> voters;
-
-  // UI filters and search
   final TextEditingController _searchCtrl = TextEditingController();
   VoterFilter _filter = VoterFilter.all;
-
-  // Recent activity log
-  final List<Activity> _activity = [
-    Activity('Checked in voter', 'ID 1007 • Booth #13', DateTime.now().subtract(const Duration(minutes: 12))),
-    Activity('Synced updates', '3 voters uploaded', DateTime.now().subtract(const Duration(hours: 1, minutes: 4))),
-    Activity('Flagged issue', 'Long queue near entry', DateTime.now().subtract(const Duration(hours: 2, minutes: 18))),
-  ];
 
   @override
   void initState() {
     super.initState();
-    voters = generateDemoVoters(120, assignedBoothCode: boothCode, seedMarkedEvery: 9);
+    _loadAgentData();
+    voters = []; // temporarily empty, will generate after boothCode is loaded
 
-    // Timer using ValueNotifier to avoid rebuilding the whole widget every second
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       onShiftNotifier.value = DateTime.now().difference(shiftStart);
+    });
+  }
+
+  //emergency service
+  Widget _buildEmergencyCard({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+    double width = 150,
+    double height = 140,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 140,       // fixed width
+        height: 160,      // fixed height
+        child: Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 3,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: color.withOpacity(0.2),
+                  child: Icon(icon, size: 28, color: color),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openMaps(String query) async {
+    final Uri googleMapsUrl =
+    Uri.parse('https://www.google.com/maps/search/$query+near+me');
+    if (!await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication)) {
+      throw 'Could not launch $googleMapsUrl';
+    }
+  }
+
+  Future<void> _loadAgentData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      agentName = prefs.getString('agent_name') ?? 'Unknown Agent';
+      boothName = prefs.getString('booth_name') ?? 'Booth N/A';
+      boothWard = prefs.getString('booth_ward') ?? 'Ward N/A';
+      boothCode = prefs.getString('booth_code') ?? 'BTH-N/A';
+
+      // Generate voters dynamically for this booth
+      voters = generateDemoVoters(120, assignedBoothCode: boothCode, seedMarkedEvery: 9);
     });
   }
 
@@ -64,7 +121,6 @@ class _AgentDashboardState extends State<AgentDashboard> {
     super.dispose();
   }
 
-  //logout
   Future<void> _logout() async {
     final shouldLogout = await showDialog<bool>(
       context: context,
@@ -86,8 +142,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
 
     if (shouldLogout == true && context.mounted) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.clear(); // 🔥 clears login session/token
-
+      await prefs.clear();
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const LoginPage()),
@@ -149,7 +204,6 @@ class _AgentDashboardState extends State<AgentDashboard> {
       setState(() {
         voter.isMarked = true;
         voter.markedAt = DateTime.now();
-        _activity.insert(0, Activity('Checked in voter', 'ID ${voter.id} • ${voter.govId}', DateTime.now()));
       });
 
       // SnackBar with Undo
@@ -169,7 +223,6 @@ class _AgentDashboardState extends State<AgentDashboard> {
     setState(() {
       voter.isMarked = false;
       voter.markedAt = null;
-      _activity.insert(0, Activity('Undo check-in', 'ID ${voter.id} • ${voter.govId}', DateTime.now()));
     });
   }
 
@@ -253,7 +306,6 @@ class _AgentDashboardState extends State<AgentDashboard> {
 
     if (issue != null && issue.isNotEmpty) {
       setState(() {
-        _activity.insert(0, Activity('Issue reported', issue, DateTime.now()));
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Issue submitted')),
@@ -267,7 +319,6 @@ class _AgentDashboardState extends State<AgentDashboard> {
     setState(() {
       isSyncing = false;
       isOffline = false;
-      _activity.insert(0, Activity('Synced updates', '${markedCount} voters uploaded', DateTime.now()));
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Sync complete')),
@@ -276,28 +327,13 @@ class _AgentDashboardState extends State<AgentDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final Color primary = Colors.blue;
-    final Color bg = theme.colorScheme.surface; // white
-    final Color textPrimary = theme.colorScheme.onSurface.withOpacity(0.9);
-    final Color textSecondary = theme.colorScheme.onSurface.withOpacity(0.65);
-    final dividerColor = theme.dividerColor.withOpacity(0.5);
-
+    // Use agentName, boothName, boothWard, boothCode dynamically in UI
     return Scaffold(
       appBar: AppBar(
         title: const Text('Agent Dashboard'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         centerTitle: true,
-        elevation: 2,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            color: Colors.red,
-            onPressed: _logout,
-          ),
-        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _simulateScan,
@@ -310,14 +346,12 @@ class _AgentDashboardState extends State<AgentDashboard> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final wide = constraints.maxWidth >= 1100;
-
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // Header Card
                   Card(
-                    color: bg,
+                    color: Colors.white,
                     elevation: 2,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     child: Padding(
@@ -326,8 +360,8 @@ class _AgentDashboardState extends State<AgentDashboard> {
                         children: [
                           CircleAvatar(
                             radius: 24,
-                            backgroundColor: primary.withOpacity(0.12),
-                            child: Icon(Icons.person, color: primary, size: 26),
+                            backgroundColor: Colors.blue.withOpacity(0.12),
+                            child: Icon(Icons.person, color: Colors.blue, size: 26),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -335,28 +369,14 @@ class _AgentDashboardState extends State<AgentDashboard> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text('Welcome, $agentName',
-                                    style: theme.textTheme.titleMedium?.copyWith(
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                       fontWeight: FontWeight.w700,
-                                      color: textPrimary,
+                                      color: Colors.black87,
                                     )),
                                 const SizedBox(height: 2),
                                 Text('Allocated: $boothName • $boothWard • $boothCode',
-                                    style: theme.textTheme.bodyMedium?.copyWith(color: textSecondary)),
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54)),
                               ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Flexible(
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: ValueListenableBuilder<Duration>(
-                                valueListenable: onShiftNotifier,
-                                builder: (_, onShift, __) => _ShiftTimer(
-                                  onShift: onShift,
-                                  primary: primary,
-                                  textPrimary: textPrimary,
-                                ),
-                              ),
                             ),
                           ),
                         ],
@@ -371,50 +391,106 @@ class _AgentDashboardState extends State<AgentDashboard> {
                     total: totalVoters,
                     marked: markedCount,
                     remaining: remainingCount,
-                    primary: primary,
-                    bg: bg,
-                    textPrimary: textPrimary,
+                    primary: Colors.blue,
+                    bg: Colors.white,
+                    textPrimary: Colors.black87,
                   ),
 
                   const SizedBox(height: 16),
 
-                  // Quick Actions and Sync Status
+                  // Quick Actions Row (removed Sync button)
                   _QuickActionsRow(
-                    primary: primary,
+                    primary: Colors.blue,
                     onScan: _simulateScan,
                     onReport: _reportIssue,
-                    onSync: _syncNow,
-                    isSyncing: isSyncing,
-                    isOffline: isOffline,
                   ),
 
                   const SizedBox(height: 16),
 
-                  // Two-up: Voters list and Recent Activity
+                  // Emergency Services Section
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.warning_amber_rounded, color: Colors.red),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Emergency Services',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Centered 2x2 grid
+                          Center(
+                            child: Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              alignment: WrapAlignment.center,
+                              runAlignment: WrapAlignment.center,
+                              children: [
+                                _buildEmergencyCard(
+                                  title: 'Nearest\nPolice Station',
+                                  icon: Icons.local_police,
+                                  color: Colors.blue,
+                                  onTap: () => _openMaps('police station'),
+                                ),
+                                _buildEmergencyCard(
+                                  title: 'Nearest\nFire Brigade',
+                                  icon: Icons.local_fire_department,
+                                  color: Colors.red,
+                                  onTap: () => _openMaps('fire station'),
+                                ),
+                                _buildEmergencyCard(
+                                  title: 'Nearest\nHospital',
+                                  icon: Icons.local_hospital,
+                                  color: Colors.green,
+                                  onTap: () => _openMaps('hospital'),
+                                ),
+                                _buildEmergencyCard(
+                                  title: 'Food & Tiffin',
+                                  icon: Icons.fastfood,
+                                  color: Colors.orange,
+                                  onTap: () => _openMaps('food tiffin near me'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Voters list and Recent Activity
                   if (!wide) ...[
                     _VoterPanel(
                       voters: filteredVoters,
                       total: totalVoters,
                       marked: markedCount,
                       remaining: remainingCount,
-                      primary: primary,
-                      textPrimary: textPrimary,
-                      textSecondary: textSecondary,
-                      dividerColor: dividerColor,
+                      primary: Colors.blue,
+                      textPrimary: Colors.black87,
+                      textSecondary: Colors.black54,
+                      dividerColor: Colors.grey.shade300,
                       searchCtrl: _searchCtrl,
                       filter: _filter,
                       onFilterChange: (f) => setState(() => _filter = f),
                       onMarkTap: _confirmMark,
                     ),
                     const SizedBox(height: 16),
-                    _ActivityPanel(
-                      activity: _activity,
-                      primary: primary,
-                      bg: bg,
-                      textPrimary: textPrimary,
-                      textSecondary: textSecondary,
-                      dividerColor: dividerColor,
-                    ),
+
                   ] else
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -426,10 +502,10 @@ class _AgentDashboardState extends State<AgentDashboard> {
                             total: totalVoters,
                             marked: markedCount,
                             remaining: remainingCount,
-                            primary: primary,
-                            textPrimary: textPrimary,
-                            textSecondary: textSecondary,
-                            dividerColor: dividerColor,
+                            primary: Colors.blue,
+                            textPrimary: Colors.black87,
+                            textSecondary: Colors.black54,
+                            dividerColor: Colors.grey.shade300,
                             searchCtrl: _searchCtrl,
                             filter: _filter,
                             onFilterChange: (f) => setState(() => _filter = f),
@@ -437,17 +513,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
                           ),
                         ),
                         const SizedBox(width: 16),
-                        Expanded(
-                          flex: 2,
-                          child: _ActivityPanel(
-                            activity: _activity,
-                            primary: primary,
-                            bg: bg,
-                            textPrimary: textPrimary,
-                            textSecondary: textSecondary,
-                            dividerColor: dividerColor,
-                          ),
-                        ),
+
                       ],
                     ),
                 ],
@@ -455,6 +521,28 @@ class _AgentDashboardState extends State<AgentDashboard> {
             );
           },
         ),
+      ),
+
+      // Bottom Footer
+      bottomNavigationBar: BottomNavigationBar(
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.how_to_vote), label: 'Voting'),
+          BottomNavigationBarItem(icon: Icon(Icons.travel_explore), label: 'Travel'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ],
+        currentIndex: _selectedIndex,
+        backgroundColor: Colors.blue,
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.white70,
+        onTap: (index) {
+          setState(() => _selectedIndex = index);
+          if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AgentProfilePage()),
+            );
+          }
+        },
       ),
     );
   }
@@ -685,17 +773,11 @@ class _QuickActionsRow extends StatelessWidget {
     required this.primary,
     required this.onScan,
     required this.onReport,
-    required this.onSync,
-    required this.isSyncing,
-    required this.isOffline,
   });
 
   final Color primary;
   final VoidCallback onScan;
   final VoidCallback onReport;
-  final VoidCallback onSync;
-  final bool isSyncing;
-  final bool isOffline;
 
   @override
   Widget build(BuildContext context) {
@@ -704,55 +786,40 @@ class _QuickActionsRow extends StatelessWidget {
     return Wrap(
       spacing: 12,
       runSpacing: 12,
-      alignment: WrapAlignment.spaceBetween,
+      alignment: WrapAlignment.center,
       children: [
-        // --- View Allocated Booth + Scan Voter ID (as a column) ---
-        Column(
-          children: [
-            SizedBox(
-              width: wide ? 220 : double.infinity,
-              child: FilledButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => ViewAllocatePollingBoothPage()),
-                  );
-                },
-                icon: const Icon(Icons.location_on),
-                label: const Text('View Allocated Booth'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
+        // --- View Allocated Booth ---
+        SizedBox(
+          width: wide ? 220 : double.infinity,
+          child: FilledButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => ViewAllocatePollingBoothPage()),
+              );
+            },
+            icon: const Icon(Icons.location_on),
+            label: const Text('View Allocated Booth'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: wide ? 220 : double.infinity,
-              child: FilledButton.icon(
-                onPressed: onScan,
-                icon: const Icon(Icons.qr_code_scanner),
-                label: const Text('Scan Voter ID'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
 
-        // --- Report Issue Button ---
+        // --- Report Issue ---
         SizedBox(
           width: wide ? 220 : double.infinity,
           child: OutlinedButton.icon(
-            onPressed: onReport,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AgentReportPage()),
+              );
+            },
             icon: Icon(Icons.report_gmailerrorred, color: primary),
             label: Text(
               'Report Issue',
@@ -766,36 +833,59 @@ class _QuickActionsRow extends StatelessWidget {
           ),
         ),
 
-        // --- Sync Button ---
+        // --- Campaign ---
         SizedBox(
-          width: wide ? 240 : double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: isSyncing ? null : onSync,
-            icon: Icon(
-              isOffline ? Icons.cloud_off : Icons.cloud_done,
-              color: isSyncing ? Colors.grey : primary,
+          width: wide ? 220 : double.infinity,
+          child: FilledButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.campaign),
+            label: const Text('Campaign'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
             ),
+          ),
+        ),
+
+        // --- Messages (Outlined) ---
+        SizedBox(
+          width: wide ? 220 : double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () {},
+            icon: Icon(Icons.message, color: primary),
             label: Text(
-              isSyncing
-                  ? 'Syncing...'
-                  : isOffline
-                  ? 'Go Online & Sync'
-                  : 'Sync Now',
-              style: TextStyle(
-                color: isSyncing ? Colors.grey : primary,
-                fontWeight: FontWeight.w700,
-              ),
+              'Messages',
+              style: TextStyle(color: primary, fontWeight: FontWeight.w700),
             ),
             style: OutlinedButton.styleFrom(
-              side: BorderSide(color: isSyncing ? Colors.grey : primary, width: 1.25),
+              side: BorderSide(color: primary, width: 1.25),
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
         ),
+
+        // --- Daily News ---
+        SizedBox(
+          width: wide ? 220 : double.infinity,
+          child: FilledButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.newspaper),
+            label: const Text('Daily News'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
       ],
     );
-
   }
 }
 
@@ -1048,102 +1138,5 @@ class _VoterTile extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _ActivityPanel extends StatelessWidget {
-  const _ActivityPanel({
-    required this.activity,
-    required this.primary,
-    required this.bg,
-    required this.textPrimary,
-    required this.textSecondary,
-    required this.dividerColor,
-  });
-
-  final List<Activity> activity;
-  final Color primary;
-  final Color bg;
-  final Color textPrimary;
-  final Color textSecondary;
-  final Color dividerColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      color: bg,
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.history, color: primary),
-                const SizedBox(width: 8),
-                Text('Recent Activity',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: textPrimary,
-                    )),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Divider(color: dividerColor),
-            const SizedBox(height: 6),
-            if (activity.isEmpty)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
-                  child: Text('No recent activity', style: TextStyle(color: textSecondary)),
-                ),
-              )
-            else
-              ListView.separated(
-                itemCount: activity.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                separatorBuilder: (_, __) => Divider(color: dividerColor),
-                itemBuilder: (_, i) {
-                  final a = activity[i];
-                  return ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: primary.withOpacity(.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(Icons.circle, color: primary, size: 12),
-                    ),
-                    title: Text(a.title, style: TextStyle(fontWeight: FontWeight.w700, color: textPrimary)),
-                    subtitle: Text(a.subtitle, style: TextStyle(color: textSecondary)),
-                    trailing: Text(a.fmtTime(), style: TextStyle(color: textSecondary, fontSize: 12)),
-                  );
-                },
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class Activity {
-  Activity(this.title, this.subtitle, this.time);
-  final String title;
-  final String subtitle;
-  final DateTime time;
-
-  String fmtTime() {
-    final now = DateTime.now();
-    final diff = now.difference(time);
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
   }
 }

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:url_launcher/url_launcher.dart'; // Added for maps
+import 'package:url_launcher/url_launcher.dart';
 import 'polling_booth_map_page.dart';
 import 'report_page.dart';
+import 'voter_profile_page.dart';
 
 class VoterHomePage extends StatefulWidget {
   const VoterHomePage({super.key});
@@ -76,7 +77,17 @@ class _VoterHomePageState extends State<VoterHomePage> {
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white70,
         currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
+        onTap: (index) {
+          if (index == 2) {
+            // Navigate only when Profile tab is tapped
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const VoterProfilePage()),
+            );
+          } else {
+            setState(() => _selectedIndex = index);
+          }
+        },
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.how_to_vote),
@@ -109,7 +120,8 @@ class _VoterHomePageState extends State<VoterHomePage> {
               color: Colors.white,
               elevation: 4,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15)),
+                borderRadius: BorderRadius.circular(15),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
@@ -172,7 +184,6 @@ class _VoterHomePageState extends State<VoterHomePage> {
               ),
             ),
             const SizedBox(height: 25),
-            // Emergency Services Title
             const Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -184,7 +195,6 @@ class _VoterHomePageState extends State<VoterHomePage> {
               ),
             ),
             const SizedBox(height: 10),
-            // 🔹 Emergency Cards Row (Maps integration)
             Row(
               children: [
                 Expanded(
@@ -195,10 +205,11 @@ class _VoterHomePageState extends State<VoterHomePage> {
                       icon: Icons.local_hospital,
                       color: Colors.green,
                       onTap: () async {
-                        final url =
-                        Uri.parse("https://www.google.com/maps/search/hospital+near+me");
+                        final url = Uri.parse(
+                            "https://www.google.com/maps/search/hospital+near+me");
                         if (await canLaunchUrl(url)) {
-                          await launchUrl(url, mode: LaunchMode.externalApplication);
+                          await launchUrl(url,
+                              mode: LaunchMode.externalApplication);
                         } else {
                           Fluttertoast.showToast(msg: "Could not open maps");
                         }
@@ -215,10 +226,11 @@ class _VoterHomePageState extends State<VoterHomePage> {
                       icon: Icons.local_police,
                       color: Colors.blue,
                       onTap: () async {
-                        final url =
-                        Uri.parse("https://www.google.com/maps/search/police+station+near+me");
+                        final url = Uri.parse(
+                            "https://www.google.com/maps/search/police+station+near+me");
                         if (await canLaunchUrl(url)) {
-                          await launchUrl(url, mode: LaunchMode.externalApplication);
+                          await launchUrl(url,
+                              mode: LaunchMode.externalApplication);
                         } else {
                           Fluttertoast.showToast(msg: "Could not open maps");
                         }
@@ -235,10 +247,11 @@ class _VoterHomePageState extends State<VoterHomePage> {
                       icon: Icons.restaurant,
                       color: Colors.orange,
                       onTap: () async {
-                        final url =
-                        Uri.parse("https://www.google.com/maps/search/restaurant+near+me");
+                        final url = Uri.parse(
+                            "https://www.google.com/maps/search/restaurant+near+me");
                         if (await canLaunchUrl(url)) {
-                          await launchUrl(url, mode: LaunchMode.externalApplication);
+                          await launchUrl(url,
+                              mode: LaunchMode.externalApplication);
                         } else {
                           Fluttertoast.showToast(msg: "Could not open maps");
                         }
@@ -249,7 +262,6 @@ class _VoterHomePageState extends State<VoterHomePage> {
               ],
             ),
             const SizedBox(height: 25),
-            // Other Options
             Card(
               color: Colors.white,
               elevation: 4,
@@ -278,15 +290,15 @@ class _VoterHomePageState extends State<VoterHomePage> {
                   _buildListTile(
                     icon: Icons.newspaper,
                     title: "Daily News",
-                    onTap: () =>
-                        Fluttertoast.showToast(msg: "Daily news coming soon"),
+                    onTap: () => Fluttertoast.showToast(
+                        msg: "Daily news coming soon"),
                   ),
                   _buildDivider(),
                   _buildListTile(
                     icon: Icons.message,
                     title: "Messages",
-                    onTap: () =>
-                        Fluttertoast.showToast(msg: "Messages feature coming soon"),
+                    onTap: () => Fluttertoast.showToast(
+                        msg: "Messages feature coming soon"),
                   ),
                   _buildDivider(),
                   _buildListTile(
@@ -295,7 +307,8 @@ class _VoterHomePageState extends State<VoterHomePage> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const ReportPage()),
+                        MaterialPageRoute(
+                            builder: (context) => const ReportPage()),
                       );
                     },
                   ),
@@ -323,7 +336,6 @@ class _VoterHomePageState extends State<VoterHomePage> {
 
   Widget _buildDivider() => const Divider(height: 0);
 
-  // 🔹 Emergency Card Widget
   Widget _buildEmergencyCard({
     required String title,
     required IconData icon,
@@ -350,7 +362,8 @@ class _VoterHomePageState extends State<VoterHomePage> {
                 Text(
                   title,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -360,7 +373,6 @@ class _VoterHomePageState extends State<VoterHomePage> {
     );
   }
 
-  // 🔹 Travel Tab
   Widget _travelTab() {
     return Center(
       key: const ValueKey('travel'),
@@ -376,59 +388,13 @@ class _VoterHomePageState extends State<VoterHomePage> {
     );
   }
 
-  // 🔹 Profile Tab
   Widget _profileTab() {
-    return Center(
-      key: const ValueKey('profile'),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.person, size: 80, color: Colors.blue),
-            const SizedBox(height: 20),
-            Text(
-              voterName,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            Text(voterEmail),
-            const SizedBox(height: 10),
-            Text("Voter ID: $voterId"),
-            const SizedBox(height: 30),
-            ElevatedButton.icon(
-              onPressed: () async {
-                bool? confirm = await showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text("Confirm Logout"),
-                    content: const Text("Are you sure you want to logout?"),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text("Cancel"),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text("Logout",
-                            style: TextStyle(color: Colors.red)),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirm == true) _logout();
-              },
-              icon: const Icon(Icons.logout),
-              label: const Text("Logout"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                minimumSize: const Size(150, 45),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
-        ),
+    // Just a placeholder
+    return const Center(
+      key: ValueKey('profile'),
+      child: Text(
+        "Profile Page",
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       ),
     );
   }
