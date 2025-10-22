@@ -20,6 +20,7 @@ dependencies:
   shared_preferences: ^2.2.3
   url_launcher: ^6.1.12
   image_picker: ^1.1.2
+  intl: ^0.18.1
 
 
 dev_dependencies:

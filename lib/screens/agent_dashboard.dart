@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'agent_profile_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'agent_report.dart';
+import 'agent_messages_page.dart';
 
 
 class AgentDashboard extends StatefulWidget {
@@ -854,7 +855,12 @@ class _QuickActionsRow extends StatelessWidget {
         SizedBox(
           width: wide ? 220 : double.infinity,
           child: OutlinedButton.icon(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AgentMessagesPage()),
+              );
+            },
             icon: Icon(Icons.message, color: primary),
             label: Text(
               'Messages',
