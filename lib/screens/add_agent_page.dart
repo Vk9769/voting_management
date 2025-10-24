@@ -9,7 +9,6 @@ import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geocoding/geocoding.dart';
 
-
 /// Booth model from backend
 class Booth {
   final String id;
@@ -43,7 +42,6 @@ class Booth {
   String toString() => '$name ($id)';
 }
 
-
 class AddAgentPage extends StatefulWidget {
   const AddAgentPage({super.key});
 
@@ -57,7 +55,7 @@ class _AddAgentPageState extends State<AddAgentPage> {
   // Controllers
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
-  final _uuidCtrl = TextEditingController();
+  final _idNumberCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
@@ -68,29 +66,121 @@ class _AddAgentPageState extends State<AddAgentPage> {
   File? _pickedImage;
   bool _loading = false;
 
+  // Role Selector
+  String? _selectedRole;
+  final List<String> _roles = ['Super Agent', 'Agent'];
+
+  String? _selectedIdType;
+  final List<String> _idTypes = ['Aadhar Card', 'Passport', 'Voter ID', 'Driving License', 'PAN Card'];
+
   // Booths
   List<Booth> _booths = [];
   bool _loadingBooths = true;
 
+  // Location dropdowns
+  String? _selectedState;
+  String? _selectedDistrict;
+  String? _selectedCity;
+  String? _selectedArea;
+
+  List<String> _states = [];
+  List<String> _districts = [];
+  List<String> _cities = [];
+  List<String> _areas = [];
+
   @override
   void initState() {
     super.initState();
-    _loadBooths();
+    _loadStates();
   }
 
-  Future<void> _loadBooths() async {
+  Future<void> _loadStates() async {
+    // Fetch states from your API
     try {
       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
-      if (token == null) throw Exception('No token found');
+      final token = prefs.getString('token') ?? '';
 
       final response = await http.get(
-        Uri.parse('https://voting-backend-6px8.onrender.com/api/admin/booths'),
+        Uri.parse('https://voting-backend-6px8.onrender.com/api/locations/states'),
         headers: {'Authorization': 'Bearer $token'},
       );
 
-      print('Booths status: ${response.statusCode}');
-      print('Booths body: ${response.body}');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() => _states = List<String>.from(data['states']));
+      }
+    } catch (e) {
+      debugPrint('Failed to load states: $e');
+    }
+  }
+
+  Future<void> _loadDistricts(String state) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? '';
+
+      final response = await http.get(
+        Uri.parse('https://voting-backend-6px8.onrender.com/api/locations/districts?state=$state'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() => _districts = List<String>.from(data['districts']));
+      }
+    } catch (e) {
+      debugPrint('Failed to load districts: $e');
+    }
+  }
+
+  Future<void> _loadCities(String district) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? '';
+
+      final response = await http.get(
+        Uri.parse('https://voting-backend-6px8.onrender.com/api/locations/cities?district=$district'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() => _cities = List<String>.from(data['cities']));
+      }
+    } catch (e) {
+      debugPrint('Failed to load cities: $e');
+    }
+  }
+
+  Future<void> _loadAreas(String city) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? '';
+
+      final response = await http.get(
+        Uri.parse('https://voting-backend-6px8.onrender.com/api/locations/areas?city=$city'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() => _areas = List<String>.from(data['areas']));
+      }
+    } catch (e) {
+      debugPrint('Failed to load areas: $e');
+    }
+  }
+
+  Future<void> _loadBooths(String area) async {
+    setState(() => _loadingBooths = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? '';
+
+      final response = await http.get(
+        Uri.parse('https://voting-backend-6px8.onrender.com/api/admin/booths?area=$area'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> json = jsonDecode(response.body);
@@ -99,51 +189,44 @@ class _AddAgentPageState extends State<AddAgentPage> {
         setState(() {
           _booths = data.map((e) => Booth.fromJson(e)).toList();
           _loadingBooths = false;
+          _selectedBooth = null;
         });
 
-        // ✅ Optional: reverse geocode to add human-readable address
+        // Reverse geocode addresses
         for (var b in _booths) {
           try {
-            final placemarks = await placemarkFromCoordinates(
-              b.latitude,
-              b.longitude,
-            );
-
+            final placemarks = await placemarkFromCoordinates(b.latitude, b.longitude);
             if (placemarks.isNotEmpty) {
               final p = placemarks.first;
-              b.address = [
-                p.street,
-                p.locality,
-                p.postalCode,
-                p.country,
-              ].whereType<String>().where((e) => e.isNotEmpty).join(', ');
+              b.address = [p.street, p.locality, p.postalCode, p.country]
+                  .whereType<String>()
+                  .where((e) => e.isNotEmpty)
+                  .join(', ');
             }
-          } catch (e) {
-            debugPrint('Geocoding failed for ${b.name}: $e');
-          }
+          } catch (_) {}
         }
-
-      } else {
-        throw Exception('Failed to load booths (code: ${response.statusCode})');
       }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load booths: $e')),
-      );
+      debugPrint('Failed to load booths: $e');
       setState(() => _loadingBooths = false);
     }
   }
 
   double get _formCompletion {
-    int total = 7;
+    int total = 13; // includes all fields and location
     int filled = 0;
     if (_firstNameCtrl.text.trim().isNotEmpty) filled++;
     if (_lastNameCtrl.text.trim().isNotEmpty) filled++;
-    if (_uuidCtrl.text.trim().length == 12) filled++;
+    if (_selectedIdType != null) filled++;
+    if (_idNumberCtrl.text.trim().isNotEmpty) filled++;
     if (_emailCtrl.text.trim().isNotEmpty) filled++;
     if (_passwordCtrl.text.trim().isNotEmpty) filled++;
     if (_phoneCtrl.text.trim().isNotEmpty) filled++;
+    if (_selectedRole != null) filled++;
+    if (_selectedState != null) filled++;
+    if (_selectedDistrict != null) filled++;
+    if (_selectedCity != null) filled++;
+    if (_selectedArea != null) filled++;
     if (_selectedBooth != null) filled++;
     return filled / total;
   }
@@ -167,12 +250,22 @@ class _AddAgentPageState extends State<AddAgentPage> {
     _formKey.currentState?.reset();
     _firstNameCtrl.clear();
     _lastNameCtrl.clear();
-    _uuidCtrl.clear();
+    _idNumberCtrl.clear();
     _emailCtrl.clear();
     _passwordCtrl.clear();
     _phoneCtrl.clear();
     _selectedBooth = null;
     _pickedImage = null;
+    _selectedRole = null;
+    _selectedIdType = null;
+    _selectedState = null;
+    _selectedDistrict = null;
+    _selectedCity = null;
+    _selectedArea = null;
+    _districts = [];
+    _cities = [];
+    _areas = [];
+    _booths = [];
     setState(() {});
   }
 
@@ -181,6 +274,24 @@ class _AddAgentPageState extends State<AddAgentPage> {
   bool _validatePhone(String v) {
     final digits = v.replaceAll(RegExp(r'[^0-9]'), '');
     return digits.length >= 7 && digits.length <= 15;
+  }
+
+  bool _validateIdNumber(String v, String idType) {
+    final cleaned = v.replaceAll(RegExp(r'[^0-9A-Za-z]'), '');
+    switch (idType) {
+      case 'Aadhar Card':
+        return cleaned.length == 12 && RegExp(r'^\d{12}$').hasMatch(cleaned);
+      case 'Passport':
+        return cleaned.length >= 6 && cleaned.length <= 9;
+      case 'Voter ID':
+        return cleaned.length >= 10;
+      case 'Driving License':
+        return cleaned.length >= 10;
+      case 'PAN Card':
+        return cleaned.length == 10;
+      default:
+        return cleaned.isNotEmpty;
+    }
   }
 
   Future<void> _submit() async {
@@ -196,7 +307,7 @@ class _AddAgentPageState extends State<AddAgentPage> {
     }
 
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    if (_selectedBooth == null) return;
+    if (_selectedBooth == null || _selectedRole == null || _selectedIdType == null) return;
 
     setState(() => _loading = true);
 
@@ -208,11 +319,17 @@ class _AddAgentPageState extends State<AddAgentPage> {
 
       request.fields['firstName'] = _firstNameCtrl.text.trim();
       request.fields['lastName'] = _lastNameCtrl.text.trim();
-      request.fields['agentUuid'] = _uuidCtrl.text.trim();
+      request.fields['idType'] = _selectedIdType!;
+      request.fields['idNumber'] = _idNumberCtrl.text.trim();
       request.fields['email'] = _emailCtrl.text.trim();
       request.fields['password'] = _passwordCtrl.text.trim();
       request.fields['phone'] = _phoneCtrl.text.trim();
       request.fields['boothId'] = _selectedBooth!.id;
+      request.fields['role'] = _selectedRole!;
+      request.fields['state'] = _selectedState ?? '';
+      request.fields['district'] = _selectedDistrict ?? '';
+      request.fields['city'] = _selectedCity ?? '';
+      request.fields['area'] = _selectedArea ?? '';
 
       if (_pickedImage != null) {
         var pic = await http.MultipartFile.fromPath(
@@ -225,9 +342,6 @@ class _AddAgentPageState extends State<AddAgentPage> {
 
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
-
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         if (!mounted) return;
@@ -259,7 +373,6 @@ class _AddAgentPageState extends State<AddAgentPage> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     const primary = Colors.blue;
@@ -268,16 +381,15 @@ class _AddAgentPageState extends State<AddAgentPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Add Agent'), backgroundColor: primary, centerTitle: true),
-      body: Stack(
-          children: [
-      SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Form(
-        key: _formKey,
-        onChanged: () => setState(() {}),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      body: Stack(children: [
+        SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Form(
+            key: _formKey,
+            onChanged: () => setState(() {}),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 // Profile Photo Card
                 Card(
                   color: Colors.white,
@@ -329,7 +441,7 @@ class _AddAgentPageState extends State<AddAgentPage> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        // First & Last Name
+                        // Name fields
                         TextFormField(
                           controller: _firstNameCtrl,
                           textInputAction: TextInputAction.next,
@@ -355,34 +467,46 @@ class _AddAgentPageState extends State<AddAgentPage> {
                         ),
                         const SizedBox(height: 12),
 
-                        // UUID with generator
-                        // UUID (manual entry only)
-                        TextFormField(
-                          controller: _uuidCtrl,
-                          textInputAction: TextInputAction.next,
-                          maxLength: 12,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(12),
-                          ],
+                        // ID Type & Number
+                        DropdownButtonFormField<String>(
+                          value: _selectedIdType,
                           decoration: const InputDecoration(
-                            labelText: 'Agent UUID (12 digits)',
-                            prefixIcon: Icon(Icons.confirmation_number, color: primary),
+                            labelText: 'Select ID Type',
+                            prefixIcon: Icon(Icons.card_membership, color: primary),
                             border: OutlineInputBorder(),
-                            counterText: '',
                           ),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'UUID is required';
-                            }
-                            if (v.trim().length != 12 || !RegExp(r'^\d{12}$').hasMatch(v.trim())) {
-                              return 'Enter 12 digits';
-                            }
-                            return null;
-                          },
+                          icon: const Icon(Icons.keyboard_arrow_down, color: primary),
+                          items: _idTypes
+                              .map((type) => DropdownMenuItem(
+                            value: type,
+                            child: Text(type),
+                          ))
+                              .toList(),
+                          onChanged: (v) => setState(() => _selectedIdType = v),
+                          validator: (v) => v == null ? 'Please select an ID type' : null,
                         ),
                         const SizedBox(height: 12),
-
+                        if (_selectedIdType != null)
+                          TextFormField(
+                            controller: _idNumberCtrl,
+                            textInputAction: TextInputAction.next,
+                            decoration: InputDecoration(
+                              labelText: '$_selectedIdType Number',
+                              prefixIcon: const Icon(Icons.confirmation_number, color: primary),
+                              border: const OutlineInputBorder(),
+                              hintText: _getIdHint(_selectedIdType!),
+                            ),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return '${_selectedIdType} number is required';
+                              }
+                              if (!_validateIdNumber(v, _selectedIdType!)) {
+                                return 'Enter a valid ${_selectedIdType} number';
+                              }
+                              return null;
+                            },
+                          ),
+                        const SizedBox(height: 12),
 
                         // Email
                         TextFormField(
@@ -402,7 +526,7 @@ class _AddAgentPageState extends State<AddAgentPage> {
                         ),
                         const SizedBox(height: 12),
 
-                        // Password with visibility toggle
+                        // Password
                         TextFormField(
                           controller: _passwordCtrl,
                           obscureText: _obscurePassword,
@@ -432,7 +556,9 @@ class _AddAgentPageState extends State<AddAgentPage> {
                           controller: _phoneCtrl,
                           textInputAction: TextInputAction.done,
                           keyboardType: TextInputType.phone,
-                          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-\s]'))],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-\s]'))
+                          ],
                           decoration: const InputDecoration(
                             labelText: 'Phone',
                             prefixIcon: Icon(Icons.phone, color: primary),
@@ -444,6 +570,25 @@ class _AddAgentPageState extends State<AddAgentPage> {
                             return null;
                           },
                         ),
+                        const SizedBox(height: 12),
+
+                        // Role Dropdown
+                        DropdownButtonFormField<String>(
+                          value: _selectedRole,
+                          decoration: const InputDecoration(
+                            labelText: 'Select Role',
+                            border: OutlineInputBorder(),
+                          ),
+                          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.blue),
+                          items: _roles
+                              .map((role) => DropdownMenuItem(
+                            value: role,
+                            child: Text(role),
+                          ))
+                              .toList(),
+                          onChanged: (v) => setState(() => _selectedRole = v),
+                          validator: (v) => v == null ? 'Please select a role' : null,
+                        ),
                       ],
                     ),
                   ),
@@ -451,118 +596,148 @@ class _AddAgentPageState extends State<AddAgentPage> {
 
                 const SizedBox(height: 16),
 
-            // ===================== Booth Selection + Preview =====================
-            Card(
-              color: Colors.white,
-              elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Title Row
-                    Row(
+                // Location Card
+                Card(
+                  color: Colors.white,
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
                       children: [
-                        const Icon(Icons.how_to_vote, color: primary),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Assigned Booth',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: textPrimary,
+                        // State Dropdown - always visible
+                        // State Dropdown - always visible
+                        DropdownButtonFormField<String>(
+                          value: _selectedState,
+                          decoration: const InputDecoration(
+                            labelText: 'Select State',
+                            border: OutlineInputBorder(),
                           ),
+                          items: _states.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                          onChanged: (v) {
+                            setState(() {
+                              _selectedState = v;
+                              _selectedDistrict = null;
+                              _selectedCity = null;
+                              _selectedArea = null;
+                              _districts = [];
+                              _cities = [];
+                              _areas = [];
+                              _booths = [];
+                            });
+                            if (v != null) _loadDistricts(v);
+                          },
+                          validator: (v) => v == null ? 'Please select a state' : null,
                         ),
+
+                        const SizedBox(height: 12),
+
+// District Dropdown - only if state is selected and districts loaded
+                        if (_selectedState != null && _districts.isNotEmpty)
+                          SizedBox(
+                            width: double.infinity,
+                            child: DropdownButtonFormField<String>(
+                              value: _selectedDistrict,
+                              decoration: const InputDecoration(
+                                labelText: 'Select District',
+                                border: OutlineInputBorder(),
+                              ),
+                              items: _districts.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                              onChanged: (v) {
+                                setState(() {
+                                  _selectedDistrict = v;
+                                  _selectedCity = null;
+                                  _selectedArea = null;
+                                  _cities = [];
+                                  _areas = [];
+                                  _booths = [];
+                                });
+                                if (v != null) _loadCities(v);
+                              },
+                              validator: (v) => v == null ? 'Please select a district' : null,
+                            ),
+                          ),
+
+                        const SizedBox(height: 12),
+
+// City Dropdown - only if district selected and cities loaded
+                        if (_selectedDistrict != null && _cities.isNotEmpty)
+                          SizedBox(
+                            width: double.infinity,
+                            child: DropdownButtonFormField<String>(
+                              value: _selectedCity,
+                              decoration: const InputDecoration(
+                                labelText: 'Select City',
+                                border: OutlineInputBorder(),
+                              ),
+                              items: _cities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                              onChanged: (v) {
+                                setState(() {
+                                  _selectedCity = v;
+                                  _selectedArea = null;
+                                  _areas = [];
+                                  _booths = [];
+                                });
+                                if (v != null) _loadAreas(v);
+                              },
+                              validator: (v) => v == null ? 'Please select a city' : null,
+                            ),
+                          ),
+
+                        const SizedBox(height: 12),
+
+// Area Dropdown - only if city selected and areas loaded
+                        if (_selectedCity != null && _areas.isNotEmpty)
+                          SizedBox(
+                            width: double.infinity,
+                            child: DropdownButtonFormField<String>(
+                              value: _selectedArea,
+                              decoration: const InputDecoration(
+                                labelText: 'Select Area',
+                                border: OutlineInputBorder(),
+                              ),
+                              items: _areas.map((a) => DropdownMenuItem(value: a, child: Text(a))).toList(),
+                              onChanged: (v) {
+                                setState(() {
+                                  _selectedArea = v;
+                                  _selectedBooth = null;
+                                  _booths = [];
+                                });
+                                if (v != null) _loadBooths(v);
+                              },
+                              validator: (v) => v == null ? 'Please select an area' : null,
+                            ),
+                          ),
+
+                        const SizedBox(height: 12),
+
+// Area Dropdown - only if city is selected
+                        if (_selectedCity != null)
+                          DropdownButtonFormField<String>(
+                            value: _selectedArea,
+                            decoration: const InputDecoration(
+                              labelText: 'Select Area',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: _areas.map((a) => DropdownMenuItem(value: a, child: Text(a))).toList(),
+                            onChanged: (v) {
+                              setState(() {
+                                _selectedArea = v;
+                                _selectedBooth = null;
+                                _booths = [];
+                              });
+                              if (v != null) _loadBooths(v);
+                            },
+                            validator: (v) => v == null ? 'Please select an area' : null,
+                          ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-
-                    // Dropdown for Booth Selection
-                    DropdownButtonFormField<Booth>(
-                      value: _selectedBooth,
-                      decoration: const InputDecoration(
-                        labelText: 'Select a Booth',
-                        border: OutlineInputBorder(),
-                      ),
-                      icon: const Icon(Icons.keyboard_arrow_down, color: primary),
-                      items: _booths
-                          .map(
-                            (b) => DropdownMenuItem(
-                          value: b,
-                          child: Text(
-                            '${b.name} • ${b.address.isNotEmpty ? b.address : "Locating..."}',
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      )
-                          .toList(),
-                      onChanged: (v) => setState(() => _selectedBooth = v),
-                      validator: (v) => v == null ? 'Please choose a booth' : null,
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // Booth Preview
-                    if (_selectedBooth != null)
-                      Container(
-                        decoration: BoxDecoration(
-                          color: primary.withOpacity(0.06),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: primary.withOpacity(0.25)),
-                        ),
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                color: primary.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              padding: const EdgeInsets.all(8),
-                              child: const Icon(Icons.place, color: primary),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _selectedBooth!.name,
-                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      color: textPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    _selectedBooth!.address.isNotEmpty
-                                        ? _selectedBooth!.address
-                                        : "Fetching address...",
-                                    style: TextStyle(color: textSecondary),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Radius: ${_selectedBooth!.radiusMeters} m',
-                                    style: TextStyle(
-                                      color: textPrimary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
 
-            const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-                // Completeness and Actions
+                // Progress + Buttons Card
                 Card(
                   color: Colors.white,
                   elevation: 2,
@@ -607,26 +782,26 @@ class _AddAgentPageState extends State<AddAgentPage> {
                                 label: const Text('Reset', style: TextStyle(color: primary)),
                                 style: OutlinedButton.styleFrom(
                                   side: const BorderSide(color: primary, width: 1.25),
-                                  padding:
-                                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
                               ),
                             ),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _loading ? null : _submit,
-                      icon: const Icon(Icons.person_add_alt_1),
-                      label: Text(_loading ? 'Adding...' : 'Add Agent'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                onPressed: _loading ? null : _submit,
+                                icon: const Icon(Icons.person_add_alt_1),
+                                label: Text(_loading ? 'Adding...' : 'Add Agent'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10)),
+                                  textStyle: const TextStyle(fontWeight: FontWeight.w700),
                                 ),
                               ),
                             ),
@@ -636,18 +811,28 @@ class _AddAgentPageState extends State<AddAgentPage> {
                     ),
                   ),
                 ),
-
-            if (_loading)
-              Container(
-                color: Colors.black26,
-                child: const Center(child: CircularProgressIndicator()),
-              ),
               ],
             ),
           ),
         ),
-      ]
-      )
+      ]),
     );
+  }
+
+  String _getIdHint(String idType) {
+    switch (idType) {
+      case 'Aadhar Card':
+        return '12 digits (e.g., 123456789012)';
+      case 'Passport':
+        return '6-9 characters';
+      case 'Voter ID':
+        return 'Minimum 10 characters';
+      case 'Driving License':
+        return 'Minimum 10 characters';
+      case 'PAN Card':
+        return '10 characters (e.g., ABCDE1234F)';
+      default:
+        return '';
+    }
   }
 }

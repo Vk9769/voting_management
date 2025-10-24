@@ -4,41 +4,61 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
-class VoterProfilePage extends StatefulWidget {
-  const VoterProfilePage({super.key});
+class AdminProfilePage extends StatefulWidget {
+  const AdminProfilePage({super.key});
 
   @override
-  State<VoterProfilePage> createState() => _VoterProfilePageState();
+  State<AdminProfilePage> createState() => _AdminProfilePageState();
 }
 
-class _VoterProfilePageState extends State<VoterProfilePage> {
-  String voterName = '';
-  String voterEmail = '';
-  String voterId = '';
+class _AdminProfilePageState extends State<AdminProfilePage> {
+  String adminName = '';
+  String adminEmail = '';
+  String adminId = '';
   String phoneNumber = '';
-  String documentType = 'Aadhaar'; // Default document type
-  String documentNumber = '';
   File? _profileImage;
 
-  final ImagePicker _picker = ImagePicker();
+  // New fields
+  String firstName = '';
+  String lastName = '';
+  String gender = 'Male';
+  String selectedDocument = 'Aadhar Card';
+  String documentNumber = '';
 
-  final List<String> _documentTypes = ['Aadhaar', 'Passport', 'Voter ID', 'Driving License'];
+  final ImagePicker _picker = ImagePicker();
+  final List<String> _documentTypes = [
+    'Aadhar Card',
+    'Voter ID',
+    'PAN Card',
+    'Passport',
+    'Driving License',
+  ];
+
+  final List<String> _genderList = ['Male', 'Female', 'Other'];
 
   @override
   void initState() {
     super.initState();
-    _loadVoterData();
+    _loadAdminData();
   }
 
-  Future<void> _loadVoterData() async {
+  Future<void> _loadAdminData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      voterName = prefs.getString('user_name') ?? 'Unknown Voter';
-      voterEmail = prefs.getString('user_email') ?? 'Not Available';
-      voterId = prefs.getString('user_id') ?? 'N/A';
-      phoneNumber = prefs.getString('user_phone') ?? 'Not Provided';
-      documentType = prefs.getString('user_doc_type') ?? 'Aadhaar';
-      documentNumber = prefs.getString('user_doc_number') ?? '';
+      adminName = prefs.getString('admin_name') ?? 'Unknown Admin';
+      adminEmail = prefs.getString('admin_email') ?? 'Not Available';
+      adminId = prefs.getString('admin_id') ?? 'N/A';
+      phoneNumber = prefs.getString('admin_phone') ?? 'Not Provided';
+      firstName = prefs.getString('first_name') ?? '';
+      lastName = prefs.getString('last_name') ?? '';
+      gender = prefs.getString('gender') ?? 'Male';
+      selectedDocument = prefs.getString('document_type') ?? 'Aadhar Card';
+      documentNumber = prefs.getString('document_number') ?? '';
+
+      final imagePath = prefs.getString('admin_image_path');
+      if (imagePath != null && File(imagePath).existsSync()) {
+        _profileImage = File(imagePath);
+      }
     });
   }
 
@@ -55,10 +75,16 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
 
   Future<void> _saveProfile() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_phone', phoneNumber);
-    await prefs.setString('user_email', voterEmail);
-    await prefs.setString('user_doc_type', documentType);
-    await prefs.setString('user_doc_number', documentNumber);
+    await prefs.setString('admin_email', adminEmail);
+    await prefs.setString('admin_phone', phoneNumber);
+    await prefs.setString('first_name', firstName);
+    await prefs.setString('last_name', lastName);
+    await prefs.setString('gender', gender);
+    await prefs.setString('document_type', selectedDocument);
+    await prefs.setString('document_number', documentNumber);
+    if (_profileImage != null) {
+      await prefs.setString('admin_image_path', _profileImage!.path);
+    }
     Fluttertoast.showToast(msg: "Profile updated successfully");
   }
 
@@ -79,14 +105,14 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
         elevation: 0,
       ),
       body: RefreshIndicator(
-        onRefresh: _loadVoterData,
+        onRefresh: _loadAdminData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // 🔹 Profile Picture with Edit Option
+              // Profile Picture
               Stack(
                 alignment: Alignment.bottomRight,
                 children: [
@@ -95,7 +121,7 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
                     backgroundColor: Colors.grey[300],
                     backgroundImage: _profileImage != null
                         ? FileImage(_profileImage!)
-                        : const AssetImage('assets/user_avatar.png')
+                        : const AssetImage('assets/admin_avatar.png')
                     as ImageProvider,
                   ),
                   Positioned(
@@ -109,7 +135,8 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
                           color: Colors.blue,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.edit, color: Colors.white, size: 20),
+                        child: const Icon(Icons.edit,
+                            color: Colors.white, size: 20),
                       ),
                     ),
                   ),
@@ -117,7 +144,7 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
               ),
               const SizedBox(height: 15),
               Text(
-                voterName,
+                adminName,
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -125,49 +152,67 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
                 ),
               ),
               const SizedBox(height: 6),
-              Text("Voter ID: $voterId",
+              Text("Admin ID: $adminId",
                   style: const TextStyle(color: Colors.black54)),
               const SizedBox(height: 25),
 
-              // 🔹 Editable Info Fields
+              // Editable Info Fields
               _buildEditableField(
-                  icon: Icons.phone_android,
-                  label: "Mobile Number",
-                  value: phoneNumber,
-                  onChanged: (v) => phoneNumber = v),
+                icon: Icons.person,
+                label: "First Name",
+                value: firstName,
+                onChanged: (v) => firstName = v,
+              ),
               const SizedBox(height: 10),
               _buildEditableField(
-                  icon: Icons.email,
-                  label: "Email",
-                  value: voterEmail,
-                  onChanged: (v) => voterEmail = v),
+                icon: Icons.person_outline,
+                label: "Last Name",
+                value: lastName,
+                onChanged: (v) => lastName = v,
+              ),
+              const SizedBox(height: 10),
+              _buildEditableField(
+                icon: Icons.phone_android,
+                label: "Mobile Number",
+                value: phoneNumber,
+                onChanged: (v) => phoneNumber = v,
+              ),
+              const SizedBox(height: 10),
+              _buildEditableField(
+                icon: Icons.email,
+                label: "Email",
+                value: adminEmail,
+                onChanged: (v) => adminEmail = v,
+              ),
               const SizedBox(height: 10),
 
-              // 🔹 Document Type Selector
+              // Gender Selector
               Card(
                 elevation: 3,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: Row(
                     children: [
-                      const Icon(Icons.credit_card, color: Colors.blue),
+                      const Icon(Icons.wc, color: Colors.blue),
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButton<String>(
-                          value: documentType,
+                          value: gender,
                           isExpanded: true,
                           underline: const SizedBox(),
-                          items: _documentTypes
-                              .map((type) => DropdownMenuItem(
-                            value: type,
-                            child: Text(type),
+                          items: _genderList
+                              .map((g) => DropdownMenuItem(
+                            value: g,
+                            child: Text(g),
                           ))
                               .toList(),
                           onChanged: (value) {
                             if (value != null) {
                               setState(() {
-                                documentType = value;
+                                gender = value;
                               });
                             }
                           },
@@ -178,31 +223,74 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
                 ),
               ),
               const SizedBox(height: 10),
+
+              // Document Type Selector
+              Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                child: Padding(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.description, color: Colors.blue),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButton<String>(
+                          value: selectedDocument,
+                          isExpanded: true,
+                          underline: const SizedBox(),
+                          items: _documentTypes
+                              .map((d) => DropdownMenuItem(
+                            value: d,
+                            child: Text(d),
+                          ))
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                selectedDocument = value;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Document Number Field
               _buildEditableField(
-                  icon: Icons.format_list_numbered,
-                  label: "$documentType Number",
-                  value: documentNumber,
-                  onChanged: (v) => documentNumber = v),
+                icon: Icons.confirmation_number,
+                label: "$selectedDocument Number",
+                value: documentNumber,
+                onChanged: (v) => documentNumber = v,
+              ),
               const SizedBox(height: 20),
 
-              // 🔹 Booth & Voting Info
+              // Info Cards
               Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 elevation: 4,
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      _buildInfoTile(Icons.location_on, "Booth Location", "KanjurMarg, Mumbai"),
+                      _buildInfoTile(
+                          Icons.location_on, "Assigned Booths", "5 Booths"),
                       _divider(),
-                      _buildInfoTile(Icons.how_to_vote, "Voting Status", "Pending"),
+                      _buildInfoTile(Icons.report, "Reports", "2 Pending"),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 30),
 
-              // 🔹 Save + Logout Buttons
+              // Save + Logout Buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -224,7 +312,8 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
                         context: context,
                         builder: (context) => AlertDialog(
                           title: const Text("Confirm Logout"),
-                          content: const Text("Are you sure you want to logout?"),
+                          content: const Text(
+                              "Are you sure you want to logout?"),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(context, false),
@@ -232,7 +321,8 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
                             ),
                             TextButton(
                               onPressed: () => Navigator.pop(context, true),
-                              child: const Text("Logout", style: TextStyle(color: Colors.red)),
+                              child: const Text("Logout",
+                                  style: TextStyle(color: Colors.red)),
                             ),
                           ],
                         ),
@@ -294,7 +384,9 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
               Text(value, style: const TextStyle(color: Colors.black54)),
             ],
