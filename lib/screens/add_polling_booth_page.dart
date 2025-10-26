@@ -158,9 +158,7 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
 
       if (_mapController != null) {
         await _mapController!.animateCamera(
-          CameraUpdate.newCameraPosition(
-            CameraPosition(target: ll, zoom: 16),
-          ),
+          CameraUpdate.newCameraPosition(CameraPosition(target: ll, zoom: 16)),
         );
       }
     } catch (e) {
@@ -185,12 +183,14 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
           place.subLocality,
           place.locality,
           place.postalCode,
-          place.country
+          place.country,
         ].where((e) => (e ?? '').toString().trim().isNotEmpty).join(', ');
 
         if (!mounted) return;
         setState(() {
-          _addressCtrl.text = address.isNotEmpty ? address : "Address not found";
+          _addressCtrl.text = address.isNotEmpty
+              ? address
+              : "Address not found";
         });
       } else {
         if (!mounted) return;
@@ -237,9 +237,7 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
         });
 
         await _mapController?.animateCamera(
-          CameraUpdate.newCameraPosition(
-            CameraPosition(target: ll, zoom: 16),
-          ),
+          CameraUpdate.newCameraPosition(CameraPosition(target: ll, zoom: 16)),
         );
 
         await _fetchAddress(ll.latitude, ll.longitude);
@@ -336,7 +334,9 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
         Fluttertoast.showToast(msg: "Polling Booth Added!");
         _fetchSavedBooths();
       } else {
-        Fluttertoast.showToast(msg: jsonResp['message'] ?? "Failed to add booth");
+        Fluttertoast.showToast(
+          msg: jsonResp['message'] ?? "Failed to add booth",
+        );
       }
     } catch (e) {
       Fluttertoast.showToast(msg: "Error connecting to server");
@@ -380,25 +380,29 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
             );
           }).toList();
 
-          await Future.wait(booths.map((b) async {
-            try {
-              final placemarks =
-              await placemarkFromCoordinates(b.location.latitude, b.location.longitude);
-              if (placemarks.isNotEmpty) {
-                final place = placemarks.first;
-                b.address = [
-                  place.street,
-                  place.locality,
-                  place.postalCode,
-                  place.country
-                ].where((e) => e != null && e.isNotEmpty).join(', ');
-              } else {
-                b.address = "Address not found";
+          await Future.wait(
+            booths.map((b) async {
+              try {
+                final placemarks = await placemarkFromCoordinates(
+                  b.location.latitude,
+                  b.location.longitude,
+                );
+                if (placemarks.isNotEmpty) {
+                  final place = placemarks.first;
+                  b.address = [
+                    place.street,
+                    place.locality,
+                    place.postalCode,
+                    place.country,
+                  ].where((e) => e != null && e.isNotEmpty).join(', ');
+                } else {
+                  b.address = "Address not found";
+                }
+              } catch (e) {
+                b.address = "Failed to fetch address";
               }
-            } catch (e) {
-              b.address = "Failed to fetch address";
-            }
-          }));
+            }),
+          );
 
           if (!mounted) return;
           setState(() {
@@ -448,7 +452,10 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                           value: selectedState,
                           decoration: InputDecoration(
                             labelText: 'State',
-                            prefixIcon: const Icon(Icons.location_on, color: blue),
+                            prefixIcon: const Icon(
+                              Icons.location_on,
+                              color: blue,
+                            ),
                             labelStyle: const TextStyle(color: blue),
                             enabledBorder: const OutlineInputBorder(
                               borderSide: BorderSide(color: blue),
@@ -458,10 +465,12 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                             ),
                           ),
                           items: LocationData.states.keys
-                              .map((state) => DropdownMenuItem(
-                            value: state,
-                            child: Text(state),
-                          ))
+                              .map(
+                                (state) => DropdownMenuItem(
+                                  value: state,
+                                  child: Text(state),
+                                ),
+                              )
                               .toList(),
                           onChanged: (value) {
                             setState(() {
@@ -485,7 +494,10 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                             value: selectedDistrict,
                             decoration: InputDecoration(
                               labelText: 'District',
-                              prefixIcon: const Icon(Icons.location_city, color: blue),
+                              prefixIcon: const Icon(
+                                Icons.location_city,
+                                color: blue,
+                              ),
                               labelStyle: const TextStyle(color: blue),
                               enabledBorder: const OutlineInputBorder(
                                 borderSide: BorderSide(color: blue),
@@ -495,10 +507,12 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                               ),
                             ),
                             items: (LocationData.states[selectedState] ?? [])
-                                .map((district) => DropdownMenuItem(
-                              value: district,
-                              child: Text(district),
-                            ))
+                                .map(
+                                  (district) => DropdownMenuItem(
+                                    value: district,
+                                    child: Text(district),
+                                  ),
+                                )
                                 .toList(),
                             onChanged: (value) {
                               setState(() {
@@ -521,8 +535,12 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                           DropdownButtonFormField<String>(
                             value: selectedCity,
                             decoration: InputDecoration(
-                              labelText: 'City',
-                              prefixIcon: const Icon(Icons.apartment, color: blue),
+                              labelText: 'Assembly Constituency',
+                              // Changed from 'City'
+                              prefixIcon: const Icon(
+                                Icons.apartment,
+                                color: blue,
+                              ),
                               labelStyle: const TextStyle(color: blue),
                               enabledBorder: const OutlineInputBorder(
                                 borderSide: BorderSide(color: blue),
@@ -531,12 +549,15 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                                 borderSide: BorderSide(color: blue, width: 2),
                               ),
                             ),
-                            items: (LocationData.districts[selectedDistrict] ?? [])
-                                .map((city) => DropdownMenuItem(
-                              value: city,
-                              child: Text(city),
-                            ))
-                                .toList(),
+                            items:
+                                (LocationData.districts[selectedDistrict] ?? [])
+                                    .map(
+                                      (city) => DropdownMenuItem(
+                                        value: city,
+                                        child: Text(city),
+                                      ),
+                                    )
+                                    .toList(),
                             onChanged: (value) {
                               setState(() {
                                 selectedCity = value;
@@ -545,19 +566,19 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                             },
                             validator: (v) {
                               if (v == null || v.isEmpty) {
-                                return 'Please select a city';
+                                return 'Please select an assembly constituency';
                               }
                               return null;
                             },
                           ),
-                        if (selectedCity != null)
-                          const SizedBox(height: 16),
+                        if (selectedCity != null) const SizedBox(height: 16),
 
                         if (selectedCity != null)
                           DropdownButtonFormField<String>(
                             value: selectedArea,
                             decoration: InputDecoration(
-                              labelText: 'Area',
+                              labelText: 'Part Name and No.',
+                              // Changed from 'Area'
                               prefixIcon: const Icon(Icons.home, color: blue),
                               labelStyle: const TextStyle(color: blue),
                               enabledBorder: const OutlineInputBorder(
@@ -568,10 +589,12 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                               ),
                             ),
                             items: (LocationData.areas[selectedCity] ?? [])
-                                .map((area) => DropdownMenuItem(
-                              value: area,
-                              child: Text(area),
-                            ))
+                                .map(
+                                  (area) => DropdownMenuItem(
+                                    value: area,
+                                    child: Text(area),
+                                  ),
+                                )
                                 .toList(),
                             onChanged: (value) {
                               setState(() {
@@ -580,20 +603,22 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                             },
                             validator: (v) {
                               if (v == null || v.isEmpty) {
-                                return 'Please select an area';
+                                return 'Please select a part name and no.';
                               }
                               return null;
                             },
                           ),
-                        if (selectedCity != null)
-                          const SizedBox(height: 16),
+                        if (selectedCity != null) const SizedBox(height: 16),
 
                         // Booth Name
                         TextFormField(
                           controller: _nameCtrl,
                           decoration: InputDecoration(
                             labelText: 'Booth Name',
-                            prefixIcon: const Icon(Icons.how_to_vote, color: blue),
+                            prefixIcon: const Icon(
+                              Icons.how_to_vote,
+                              color: blue,
+                            ),
                             labelStyle: const TextStyle(color: blue),
                             enabledBorder: const OutlineInputBorder(
                               borderSide: BorderSide(color: blue),
@@ -623,18 +648,27 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                               children: [
                                 IconButton(
                                   tooltip: 'Locate this address',
-                                  onPressed: _geocoding ? null : _forwardGeocodeAndMove,
+                                  onPressed: _geocoding
+                                      ? null
+                                      : _forwardGeocodeAndMove,
                                   icon: _geocoding
                                       ? const SizedBox(
-                                    width: 20, height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: blue),
-                                  )
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: blue,
+                                          ),
+                                        )
                                       : const Icon(Icons.search, color: blue),
                                 ),
                                 IconButton(
                                   tooltip: 'Use current location',
                                   onPressed: _recenterToCurrent,
-                                  icon: const Icon(Icons.my_location, color: blue),
+                                  icon: const Icon(
+                                    Icons.my_location,
+                                    color: blue,
+                                  ),
                                 ),
                               ],
                             ),
@@ -703,81 +737,101 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                     height: 360,
                     child: _initializing
                         ? const Center(
-                      child: CircularProgressIndicator(color: blue),
-                    )
+                            child: CircularProgressIndicator(color: blue),
+                          )
                         : selectedLocation == null
                         ? const Center(
-                      child: Text('Tap the map or use current location'),
-                    )
+                            child: Text('Tap the map or use current location'),
+                          )
                         : RepaintBoundary(
-                      child: GoogleMap(
-                        initialCameraPosition: CameraPosition(
-                          target: selectedLocation!,
-                          zoom: 16,
-                        ),
-                        onMapCreated: (c) => _mapController = c,
-                        onTap: _onMapTap,
-                        myLocationButtonEnabled: false,
-                        myLocationEnabled: false,
-                        markers: {
-                          if (selectedLocation != null)
-                            Marker(
-                              markerId: const MarkerId('current'),
-                              position: selectedLocation!,
-                              icon: BitmapDescriptor.defaultMarkerWithHue(
-                                BitmapDescriptor.hueBlue,
+                            child: GoogleMap(
+                              initialCameraPosition: CameraPosition(
+                                target: selectedLocation!,
+                                zoom: 16,
                               ),
-                              infoWindow: InfoWindow(
-                                title: _nameCtrl.text.isEmpty ? 'Selected Location' : _nameCtrl.text,
-                                snippet: _addressCtrl.text,
-                              ),
-                            ),
-                          ...savedBooths.map(
-                                (b) => Marker(
-                              markerId: MarkerId(b.name),
-                              position: b.location,
-                              infoWindow: InfoWindow(title: b.name, snippet: b.address),
-                              icon: BitmapDescriptor.defaultMarkerWithHue(
-                                BitmapDescriptor.hueGreen,
-                              ),
+                              onMapCreated: (c) => _mapController = c,
+                              onTap: _onMapTap,
+                              myLocationButtonEnabled: false,
+                              myLocationEnabled: false,
+                              markers: {
+                                if (selectedLocation != null)
+                                  Marker(
+                                    markerId: const MarkerId('current'),
+                                    position: selectedLocation!,
+                                    icon: BitmapDescriptor.defaultMarkerWithHue(
+                                      BitmapDescriptor.hueBlue,
+                                    ),
+                                    infoWindow: InfoWindow(
+                                      title: _nameCtrl.text.isEmpty
+                                          ? 'Selected Location'
+                                          : _nameCtrl.text,
+                                      snippet: _addressCtrl.text,
+                                    ),
+                                  ),
+                                ...savedBooths.map(
+                                  (b) => Marker(
+                                    markerId: MarkerId(b.name),
+                                    position: b.location,
+                                    infoWindow: InfoWindow(
+                                      title: b.name,
+                                      snippet: b.address,
+                                    ),
+                                    icon: BitmapDescriptor.defaultMarkerWithHue(
+                                      BitmapDescriptor.hueGreen,
+                                    ),
+                                  ),
+                                ),
+                              },
+                              circles: {
+                                if (selectedLocation != null)
+                                  Circle(
+                                    circleId: const CircleId('currentRadius'),
+                                    center: selectedLocation!,
+                                    radius: radius,
+                                    fillColor: Colors.blueAccent.withOpacity(
+                                      0.2,
+                                    ),
+                                    strokeColor: blue,
+                                    strokeWidth: 2,
+                                  ),
+                                ...savedBooths.map(
+                                  (b) => Circle(
+                                    circleId: CircleId(b.name),
+                                    center: b.location,
+                                    radius: b.radius,
+                                    fillColor: Colors.greenAccent.withOpacity(
+                                      0.2,
+                                    ),
+                                    strokeColor: Colors.green,
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              },
+                              zoomControlsEnabled: true,
+                              zoomGesturesEnabled: true,
+                              scrollGesturesEnabled: true,
+                              rotateGesturesEnabled: true,
+                              tiltGesturesEnabled: false,
+                              gestureRecognizers:
+                                  <Factory<OneSequenceGestureRecognizer>>{
+                                    Factory<PanGestureRecognizer>(
+                                      () => PanGestureRecognizer(),
+                                    ),
+                                    Factory<ScaleGestureRecognizer>(
+                                      () => ScaleGestureRecognizer(),
+                                    ),
+                                    Factory<TapGestureRecognizer>(
+                                      () => TapGestureRecognizer(),
+                                    ),
+                                    Factory<VerticalDragGestureRecognizer>(
+                                      () => VerticalDragGestureRecognizer(),
+                                    ),
+                                    Factory<HorizontalDragGestureRecognizer>(
+                                      () => HorizontalDragGestureRecognizer(),
+                                    ),
+                                  },
                             ),
                           ),
-                        },
-                        circles: {
-                          if (selectedLocation != null)
-                            Circle(
-                              circleId: const CircleId('currentRadius'),
-                              center: selectedLocation!,
-                              radius: radius,
-                              fillColor: Colors.blueAccent.withOpacity(0.2),
-                              strokeColor: blue,
-                              strokeWidth: 2,
-                            ),
-                          ...savedBooths.map(
-                                (b) => Circle(
-                              circleId: CircleId(b.name),
-                              center: b.location,
-                              radius: b.radius,
-                              fillColor: Colors.greenAccent.withOpacity(0.2),
-                              strokeColor: Colors.green,
-                              strokeWidth: 2,
-                            ),
-                          ),
-                        },
-                        zoomControlsEnabled: true,
-                        zoomGesturesEnabled: true,
-                        scrollGesturesEnabled: true,
-                        rotateGesturesEnabled: true,
-                        tiltGesturesEnabled: false,
-                        gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-                          Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
-                          Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
-                          Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
-                          Factory<VerticalDragGestureRecognizer>(() => VerticalDragGestureRecognizer()),
-                          Factory<HorizontalDragGestureRecognizer>(() => HorizontalDragGestureRecognizer()),
-                        },
-                      ),
-                    ),
                   ),
                 ),
               ),
@@ -795,12 +849,20 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                           const EdgeInsets.symmetric(vertical: 14),
                         ),
                         shape: MaterialStateProperty.all(
-                          RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                       ),
                       onPressed: _saveBooth,
                       icon: const Icon(Icons.add, color: Colors.white),
-                      label: const Text('Add Booth', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                      label: const Text(
+                        'Add Booth',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -809,12 +871,17 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: blue, width: 1.25),
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                         foregroundColor: blue,
                       ),
                       onPressed: _resetForm,
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Reset', style: TextStyle(fontWeight: FontWeight.w700)),
+                      label: const Text(
+                        'Reset',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
                     ),
                   ),
                 ],
@@ -826,7 +893,9 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
               if (savedBooths.isNotEmpty)
                 Card(
                   elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: ExpansionTile(
@@ -846,9 +915,21 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                           itemBuilder: (_, i) {
                             final b = savedBooths[i];
                             return ListTile(
-                              leading: const Icon(Icons.how_to_vote, color: blue),
-                              title: Text(b.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                              subtitle: Text(b.address, maxLines: 2, overflow: TextOverflow.ellipsis),
+                              leading: const Icon(
+                                Icons.how_to_vote,
+                                color: blue,
+                              ),
+                              title: Text(
+                                b.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                b.address,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                               trailing: IconButton(
                                 tooltip: 'View on map',
                                 icon: const Icon(Icons.map, color: blue),
@@ -861,7 +942,10 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                                   });
                                   await _mapController?.animateCamera(
                                     CameraUpdate.newCameraPosition(
-                                      CameraPosition(target: b.location, zoom: 16),
+                                      CameraPosition(
+                                        target: b.location,
+                                        zoom: 16,
+                                      ),
                                     ),
                                   );
                                 },
