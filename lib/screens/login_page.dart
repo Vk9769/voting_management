@@ -4,6 +4,7 @@ import 'signup_page.dart';
 import 'voter_home.dart';
 import 'admin_dashboard.dart'; // import the dashboard page
 import 'agent_dashboard.dart'; // make sure this file exists
+import 'candidate_dashboard.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -40,8 +41,22 @@ class _LoginPageState extends State<LoginPage> {
       String password = _passwordController.text.trim();
 
       try {
-        // 🌐 Backend URL — adjust as per your setup
-        const String baseUrl = "https://voting-backend-6px8.onrender.com/api/auth"; // Android emulator localhost
+        // 🔹 Test server connection first
+        try {
+          final res = await http.get(Uri.parse("http://13.61.32.111:3000"));
+          print("Server response: ${res.body}");
+        } catch (e) {
+          print("Connection failed: $e");
+          Fluttertoast.showToast(
+            msg: "Cannot connect to server. Check network / port",
+            backgroundColor: Colors.red,
+          );
+          setState(() => _isLoading = false);
+          return; // Stop login if server unreachable
+        }
+
+        // 🌐 Backend login URL
+        const String baseUrl = "http://13.61.32.111:3000/api/auth";
 
         // Step 1️⃣ Login Request
         final loginResponse = await http.post(
@@ -116,8 +131,12 @@ class _LoginPageState extends State<LoginPage> {
                 context,
                 MaterialPageRoute(builder: (context) => const VoterHomePage()),
               );
-            }
-            else {
+            } else if (userRole == "candidate") {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const CandidateDashboard()),
+              );
+            }else {
               Fluttertoast.showToast(
                 msg: "Unknown role: $userRole",
                 backgroundColor: Colors.red,

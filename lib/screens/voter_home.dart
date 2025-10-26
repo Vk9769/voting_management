@@ -277,7 +277,7 @@ class _VoterHomePageState extends State<VoterHomePage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => PollingBoothCardPage(
+                          builder: (context) => PollingBoothMapPagee(
                             boothName: "Booth 12, KanjurMarg",
                             boothLat: 19.128917,
                             boothLng: 72.926611,

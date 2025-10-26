@@ -3,130 +3,154 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
-import 'package:fluttertoast/fluttertoast.dart';
 
-class PollingBoothCardPage extends StatefulWidget {
+class PollingBoothMapPagee extends StatefulWidget {
   final String boothName;
   final double boothLat;
   final double boothLng;
+  final String? agentName; // 👈 nullable
+  final String? agentId;
 
-  const PollingBoothCardPage({
+  const PollingBoothMapPagee({
     super.key,
     required this.boothName,
     required this.boothLat,
     required this.boothLng,
+    this.agentName, // 👈 made optional
+    this.agentId,   // 👈 made optional
   });
 
   @override
-  State<PollingBoothCardPage> createState() => _PollingBoothCardPageState();
+  State<PollingBoothMapPagee> createState() => _PollingBoothMapPageeState();
 }
 
-class _PollingBoothCardPageState extends State<PollingBoothCardPage> {
-  Completer<GoogleMapController> _controller = Completer();
-  LatLng? _currentPosition;
+class _PollingBoothMapPageeState extends State<PollingBoothMapPagee> {
+  final Completer<GoogleMapController> _mapController = Completer();
+  GoogleMapController? _controller;
+  Position? _currentPosition;
+
   Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
-  String _distance = "Calculating...";
-  String _duration = "";
 
+  bool _isInsideRadius = false;
+  double? _distanceMeters;
+  String _distanceText = 'Calculating...';
+  String _durationText = '';
+  bool _loading = true;
+
+  final double boothRadius = 100.0; // meters
   final String _googleApiKey = 'YOUR_GOOGLE_MAPS_API_KEY';
 
   @override
   void initState() {
     super.initState();
-    _determinePosition();
+    _initLocation();
   }
 
-  Future<void> _determinePosition() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      Fluttertoast.showToast(msg: "Location services are disabled.");
-      return;
+  Future<void> _initLocation() async {
+    await _getCurrentLocation();
+    if (_currentPosition != null) {
+      await _getDirections();
     }
+    setState(() => _loading = false);
+  }
 
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        Fluttertoast.showToast(msg: "Location permission denied");
-        return;
+  Future<void> _getCurrentLocation() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied ||
+            permission == LocationPermission.deniedForever) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Location permission is required.')),
+            );
+          }
+          return;
+        }
       }
+
+      final position =
+      await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final distance = Geolocator.distanceBetween(
+        position.latitude,
+        position.longitude,
+        widget.boothLat,
+        widget.boothLng,
+      );
+
+      setState(() {
+        _currentPosition = position;
+        _distanceMeters = distance;
+        _isInsideRadius = distance <= boothRadius;
+
+        _markers = {
+          Marker(
+            markerId: const MarkerId('me'),
+            position: LatLng(position.latitude, position.longitude),
+            infoWindow: const InfoWindow(title: 'Your Location'),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+          ),
+          Marker(
+            markerId: const MarkerId('booth'),
+            position: LatLng(widget.boothLat, widget.boothLng),
+            infoWindow: InfoWindow(title: widget.boothName),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          ),
+        };
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to get location: $e')),
+      );
     }
-
-    if (permission == LocationPermission.deniedForever) {
-      Fluttertoast.showToast(
-          msg: "Location permissions are permanently denied. Enable from settings.");
-      return;
-    }
-
-    Position position =
-    await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-
-    _currentPosition = LatLng(position.latitude, position.longitude);
-
-    _markers.add(Marker(
-        markerId: const MarkerId('currentLocation'),
-        position: _currentPosition!,
-        infoWindow: const InfoWindow(title: 'Your Location'),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue)));
-
-    _markers.add(Marker(
-        markerId: const MarkerId('pollingBooth'),
-        position: LatLng(widget.boothLat, widget.boothLng),
-        infoWindow: InfoWindow(title: widget.boothName),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed)));
-
-    await _getDirections();
   }
 
   Future<void> _getDirections() async {
     if (_currentPosition == null) return;
-
-    String url =
-        "https://maps.googleapis.com/maps/api/directions/json?origin=${_currentPosition!.latitude},${_currentPosition!.longitude}&destination=${widget.boothLat},${widget.boothLng}&key=$_googleApiKey";
+    final origin =
+        '${_currentPosition!.latitude},${_currentPosition!.longitude}';
+    final destination = '${widget.boothLat},${widget.boothLng}';
+    final url =
+        'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination&key=$_googleApiKey';
 
     try {
       final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        Map<String, dynamic> data = json.decode(response.body);
-        if ((data['routes'] as List).isNotEmpty) {
-          var route = data['routes'][0];
-          String distanceText = route['legs'][0]['distance']['text'];
-          String durationText = route['legs'][0]['duration']['text'];
+      final data = json.decode(response.body);
 
-          List<PointLatLng> points =
-          _decodePolyline(route['overview_polyline']['points']);
-          Set<Polyline> polylines = {
+      if ((data['routes'] as List).isNotEmpty) {
+        final route = data['routes'][0];
+        final leg = route['legs'][0];
+        final points = _decodePolyline(route['overview_polyline']['points']);
+
+        setState(() {
+          _distanceText = leg['distance']['text'];
+          _durationText = leg['duration']['text'];
+          _polylines = {
             Polyline(
-              polylineId: const PolylineId("route"),
-              points: points.map((p) => LatLng(p.latitude, p.longitude)).toList(),
+              polylineId: const PolylineId('route'),
               color: Colors.blue,
               width: 5,
+              points:
+              points.map((p) => LatLng(p.latitude, p.longitude)).toList(),
             ),
           };
-
-          setState(() {
-            _distance = distanceText;
-            _duration = durationText;
-            _polylines = polylines;
-          });
-        } else {
-          setState(() {
-            _distance = "Route not found";
-            _duration = "";
-          });
-        }
+        });
       } else {
         setState(() {
-          _distance = "Error fetching route";
-          _duration = "";
+          _distanceText = 'No route found';
+          _durationText = '';
         });
       }
     } catch (e) {
       setState(() {
-        _distance = "Error: $e";
-        _duration = "";
+        _distanceText = 'Error fetching route';
+        _durationText = '';
       });
     }
   }
@@ -161,130 +185,205 @@ class _PollingBoothCardPageState extends State<PollingBoothCardPage> {
     return poly;
   }
 
-  void _openFullMap() {
+  Future<void> _openDirections() async {
     if (_currentPosition == null) return;
-    Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (_) => FullPollingBoothMapPage(
-              boothName: widget.boothName,
-              boothLat: widget.boothLat,
-              boothLng: widget.boothLng,
-              currentPosition: _currentPosition!,
-              markers: _markers,
-              polylines: _polylines,
-            )));
+    final url =
+        'https://www.google.com/maps/dir/?api=1&origin=${_currentPosition!.latitude},${_currentPosition!.longitude}&destination=${widget.boothLat},${widget.boothLng}&travelmode=driving';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _centerOnBooth() async {
+    if (_controller == null) return;
+    await _controller!.animateCamera(
+      CameraUpdate.newLatLngZoom(LatLng(widget.boothLat, widget.boothLng), 16),
+    );
+  }
+
+  Future<void> _centerOnMe() async {
+    if (_controller == null || _currentPosition == null) return;
+    await _controller!.animateCamera(
+      CameraUpdate.newLatLngZoom(
+        LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+        16,
+      ),
+    );
+  }
+
+  String _formatDistance(double? meters) {
+    if (meters == null) return '—';
+    if (meters >= 1000) return '${(meters / 1000).toStringAsFixed(2)} km';
+    return '${meters.toStringAsFixed(0)} m';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          title: const Text("Polling Booth"), backgroundColor: Colors.blue),
-      body: _currentPosition == null
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Card(
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-          elevation: 4,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Booth info & distance
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(widget.boothName,
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(_distance,
-                            style: const TextStyle(
-                                fontSize: 14, color: Colors.grey)),
-                        Text(_duration,
-                            style: const TextStyle(
-                                fontSize: 14, color: Colors.grey)),
-                      ],
-                    )
-                  ],
-                ),
-              ),
-              // Embedded Map
-              SizedBox(
-                height: 200,
-                child: GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                      target: _currentPosition!, zoom: 14),
-                  markers: _markers,
-                  polylines: _polylines,
-                  myLocationEnabled: false,
-                  zoomControlsEnabled: false,
-                  onMapCreated: (controller) {
-                    _controller.complete(controller);
-                  },
-                ),
-              ),
-              // Open full map
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: ElevatedButton.icon(
-                  onPressed: _openFullMap,
-                  icon: const Icon(Icons.map),
-                  label: const Text("Open Full Map"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    minimumSize: const Size(double.infinity, 45),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+        title: const Text('Allocated Polling Booth'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+        centerTitle: true,
+        elevation: 2,
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: Colors.blue))
+          : SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+              child: Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 22,
+                            backgroundColor: Colors.blue.withOpacity(0.12),
+                            child: const Icon(Icons.person, color: Colors.blue),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Agent: ${widget.agentName}',
+                                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                                Text('ID: ${widget.agentId}'),
+                                Text('Booth: ${widget.boothName}',
+                                    style: const TextStyle(fontSize: 16)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      _StatusChip(isInside: _isInsideRadius),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Distance: $_distanceText'),
+                          Text('Duration: $_durationText'),
+                          TextButton.icon(
+                            onPressed: _initLocation,
+                            icon: const Icon(Icons.refresh, color: Colors.blue),
+                            label: const Text('Refresh', style: TextStyle(color: Colors.blue)),
+                          )
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              )
-            ],
-          ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                child: Card(
+                  elevation: 3,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  clipBehavior: Clip.antiAlias,
+                  child: GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: LatLng(widget.boothLat, widget.boothLng),
+                      zoom: 15,
+                    ),
+                    onMapCreated: (controller) {
+                      _controller = controller;
+                      if (!_mapController.isCompleted) _mapController.complete(controller);
+                    },
+                    markers: _markers,
+                    polylines: _polylines,
+                    circles: {
+                      Circle(
+                        circleId: const CircleId('radius'),
+                        center: LatLng(widget.boothLat, widget.boothLng),
+                        radius: boothRadius,
+                        fillColor: Colors.blue.withOpacity(0.12),
+                        strokeColor: Colors.blue,
+                        strokeWidth: 2,
+                      ),
+                    },
+                    myLocationEnabled: true,
+                    zoomControlsEnabled: true,
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _centerOnBooth,
+                      icon: const Icon(Icons.place),
+                      label: const Text('Center Booth'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _centerOnMe,
+                      icon: const Icon(Icons.my_location, color: Colors.blue),
+                      label: const Text('Center Me', style: TextStyle(color: Colors.blue)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _openDirections,
+                      icon: const Icon(Icons.directions),
+                      label: const Text('Directions'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class FullPollingBoothMapPage extends StatelessWidget {
-  final String boothName;
-  final double boothLat;
-  final double boothLng;
-  final LatLng currentPosition;
-  final Set<Marker> markers;
-  final Set<Polyline> polylines;
-
-  const FullPollingBoothMapPage({
-    super.key,
-    required this.boothName,
-    required this.boothLat,
-    required this.boothLng,
-    required this.currentPosition,
-    required this.markers,
-    required this.polylines,
-  });
+class _StatusChip extends StatelessWidget {
+  final bool isInside;
+  const _StatusChip({required this.isInside});
 
   @override
   Widget build(BuildContext context) {
-    Completer<GoogleMapController> controller = Completer();
-
-    return Scaffold(
-      appBar: AppBar(title: const Text("Full Map"), backgroundColor: Colors.blue),
-      body: GoogleMap(
-        initialCameraPosition: CameraPosition(target: currentPosition, zoom: 14),
-        markers: markers,
-        polylines: polylines,
-        myLocationEnabled: true,
-        myLocationButtonEnabled: true,
-        zoomControlsEnabled: true,
-        onMapCreated: (c) => controller.complete(c),
+    final color = isInside ? Colors.green : Colors.red;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(50),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(isInside ? Icons.check_circle : Icons.error_outline, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(isInside ? 'Inside Booth Area' : 'Outside Booth Area',
+              style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }

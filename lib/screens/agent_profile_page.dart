@@ -12,13 +12,18 @@ class AgentProfilePage extends StatefulWidget {
 }
 
 class _AgentProfilePageState extends State<AgentProfilePage> {
-  String agentName = '';
+  String firstName = '';
+  String lastName = '';
+  String fatherName = '';
+  String voterId = '';
   String agentEmail = '';
-  String agentId = '';
   String agentPhone = '';
+  String documentType = 'Aadhaar';
+  String documentNumber = '';
   File? _profileImage;
 
   final ImagePicker _picker = ImagePicker();
+  final List<String> _documentTypes = ['Aadhaar', 'Passport', 'Voter ID', 'Driving License'];
 
   @override
   void initState() {
@@ -29,10 +34,16 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
   Future<void> _loadAgentData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      agentName = prefs.getString('agent_name') ?? 'Unknown Agent';
-      agentEmail = prefs.getString('agent_email') ?? 'Not Available';
-      agentId = prefs.getString('agent_id') ?? 'N/A';
-      agentPhone = prefs.getString('agent_phone') ?? 'Not Provided';
+      final fullName = prefs.getString('agent_name') ?? '';
+      List<String> names = fullName.split(' ');
+      firstName = names.isNotEmpty ? names[0] : '';
+      lastName = names.length > 1 ? names.sublist(1).join(' ') : '';
+      fatherName = prefs.getString('father_name') ?? '';
+      voterId = prefs.getString('user_id') ?? '';
+      agentEmail = prefs.getString('agent_email') ?? '';
+      agentPhone = prefs.getString('agent_phone') ?? '';
+      documentType = prefs.getString('agent_doc_type') ?? 'Aadhaar';
+      documentNumber = prefs.getString('agent_doc_number') ?? '';
       final imagePath = prefs.getString('agent_image_path');
       if (imagePath != null && File(imagePath).existsSync()) {
         _profileImage = File(imagePath);
@@ -53,8 +64,13 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
 
   Future<void> _saveProfile() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('agent_name', '$firstName $lastName');
+    await prefs.setString('father_name', fatherName);
+    await prefs.setString('voter_id', voterId);
     await prefs.setString('agent_email', agentEmail);
     await prefs.setString('agent_phone', agentPhone);
+    await prefs.setString('agent_doc_type', documentType);
+    await prefs.setString('agent_doc_number', documentNumber);
     if (_profileImage != null) {
       await prefs.setString('agent_image_path', _profileImage!.path);
     }
@@ -72,11 +88,6 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: const Text("Agent Profile"),
-        backgroundColor: Colors.blue,
-        elevation: 0,
-      ),
       body: RefreshIndicator(
         onRefresh: _loadAgentData,
         child: SingleChildScrollView(
@@ -86,6 +97,8 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Profile Picture
+              // Replace this section in your build method:
+
               Stack(
                 alignment: Alignment.bottomRight,
                 children: [
@@ -94,8 +107,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                     backgroundColor: Colors.grey[300],
                     backgroundImage: _profileImage != null
                         ? FileImage(_profileImage!)
-                        : const AssetImage('assets/agent_avatar.png')
-                    as ImageProvider,
+                        : const AssetImage('assets/agent_avatar.png') as ImageProvider,
                   ),
                   Positioned(
                     bottom: 5,
@@ -108,31 +120,47 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                           color: Colors.blue,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.edit,
-                            color: Colors.white, size: 20),
+                        child: const Icon(Icons.edit, color: Colors.white, size: 20),
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 10), // reduced from 15
               Text(
-                agentName,
+                '$firstName $lastName',
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text("Agent ID: $agentId",
-                  style: const TextStyle(color: Colors.black54)),
-              const SizedBox(height: 25),
+              const SizedBox(height: 4), // reduced from 6
+              Text("Voter ID: $voterId", style: const TextStyle(color: Colors.black54)),
+              const SizedBox(height: 15), // reduced from 25
 
-              // Editable Fields
+              // Editable fields
+              _buildEditableField(
+                  icon: Icons.person,
+                  label: "First Name",
+                  value: firstName,
+                  onChanged: (v) => firstName = v),
+              const SizedBox(height: 10),
+              _buildEditableField(
+                  icon: Icons.person,
+                  label: "Last Name",
+                  value: lastName,
+                  onChanged: (v) => lastName = v),
+              const SizedBox(height: 10),
+              _buildEditableField(
+                  icon: Icons.person_outline,
+                  label: "Father's Name",
+                  value: fatherName,
+                  onChanged: (v) => fatherName = v),
+              const SizedBox(height: 10),
               _buildEditableField(
                   icon: Icons.phone_android,
-                  label: "Phone",
+                  label: "Mobile Number",
                   value: agentPhone,
                   onChanged: (v) => agentPhone = v),
               const SizedBox(height: 10),
@@ -141,9 +169,59 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                   label: "Email",
                   value: agentEmail,
                   onChanged: (v) => agentEmail = v),
+              const SizedBox(height: 10),
+              _buildEditableField(
+                  icon: Icons.badge,
+                  label: "Voter ID",
+                  value: voterId,
+                  onChanged: (v) => voterId = v),
+              const SizedBox(height: 10),
+
+              // Document type selector
+              Card(
+                elevation: 3,
+                shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                child: Padding(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.credit_card, color: Colors.blue),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButton<String>(
+                          value: documentType,
+                          isExpanded: true,
+                          underline: const SizedBox(),
+                          items: _documentTypes
+                              .map((type) => DropdownMenuItem(
+                            value: type,
+                            child: Text(type),
+                          ))
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                documentType = value;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              _buildEditableField(
+                  icon: Icons.format_list_numbered,
+                  label: "$documentType Number",
+                  value: documentNumber,
+                  onChanged: (v) => documentNumber = v),
               const SizedBox(height: 20),
 
-              // Actions List (Booths, Messages, Reports)
+              // Actions: Booths, Messages, Reports
               Card(
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),

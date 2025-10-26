@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'agent_report.dart';
 import 'agent_messages_page.dart';
 import 'agent_news_page.dart';
+import 'agent_voting_page.dart';
 
 
 class AgentDashboard extends StatefulWidget {
@@ -337,21 +338,27 @@ class _AgentDashboardState extends State<AgentDashboard> {
         foregroundColor: Colors.white,
         centerTitle: true,
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: _selectedIndex == 0
+          ? FloatingActionButton.extended(
         onPressed: _simulateScan,
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.qr_code_scanner),
         label: const Text('Scan ID'),
-      ),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 1100;
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
+      )
+          : null,
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          // 0 → Dashboard
+          SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final wide = constraints.maxWidth >= 1100;
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
                   Card(
                     color: Colors.white,
                     elevation: 2,
@@ -525,25 +532,37 @@ class _AgentDashboardState extends State<AgentDashboard> {
         ),
       ),
 
+            // 1 → Voting Tab
+            const AgentVotingPage(),
+
+            // 2 → Travel Tab
+            Center(
+              child: Text(
+                'Travel Tab - Coming Soon',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black54),
+              ),
+            ),
+
+            // 3 → Profile Tab
+            const AgentProfilePage(),
+          ],
+      ),
+
       // Bottom Footer
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed, // needed for backgroundColor to work
         items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Dashboard'),
           BottomNavigationBarItem(icon: Icon(Icons.how_to_vote), label: 'Voting'),
           BottomNavigationBarItem(icon: Icon(Icons.travel_explore), label: 'Travel'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
         currentIndex: _selectedIndex,
-        backgroundColor: Colors.blue,
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white70,
+        backgroundColor: Colors.blue,       // background color
+        selectedItemColor: Colors.white,    // selected icon/text color
+        unselectedItemColor: Colors.white70, // unselected icon/text color
         onTap: (index) {
           setState(() => _selectedIndex = index);
-          if (index == 2) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const AgentProfilePage()),
-            );
-          }
         },
       ),
     );

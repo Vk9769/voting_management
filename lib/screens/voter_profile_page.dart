@@ -12,7 +12,9 @@ class VoterProfilePage extends StatefulWidget {
 }
 
 class _VoterProfilePageState extends State<VoterProfilePage> {
-  String voterName = '';
+  String firstName = '';
+  String lastName = '';
+  String fatherName = '';
   String voterEmail = '';
   String voterId = '';
   String phoneNumber = '';
@@ -33,10 +35,14 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
   Future<void> _loadVoterData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      voterName = prefs.getString('user_name') ?? 'Unknown Voter';
-      voterEmail = prefs.getString('user_email') ?? 'Not Available';
-      voterId = prefs.getString('user_id') ?? 'N/A';
-      phoneNumber = prefs.getString('user_phone') ?? 'Not Provided';
+      final fullName = prefs.getString('user_name') ?? 'Unknown Voter';
+      List<String> names = fullName.split(' ');
+      firstName = names.isNotEmpty ? names[0] : '';
+      lastName = names.length > 1 ? names.sublist(1).join(' ') : '';
+      fatherName = prefs.getString('father_name') ?? '';
+      voterEmail = prefs.getString('user_email') ?? '';
+      voterId = prefs.getString('user_id') ?? '';
+      phoneNumber = prefs.getString('user_phone') ?? '';
       documentType = prefs.getString('user_doc_type') ?? 'Aadhaar';
       documentNumber = prefs.getString('user_doc_number') ?? '';
     });
@@ -55,6 +61,8 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
 
   Future<void> _saveProfile() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_name', '$firstName $lastName');
+    await prefs.setString('father_name', fatherName);
     await prefs.setString('user_phone', phoneNumber);
     await prefs.setString('user_email', voterEmail);
     await prefs.setString('user_doc_type', documentType);
@@ -86,7 +94,7 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // 🔹 Profile Picture with Edit Option
+              // Profile Picture
               Stack(
                 alignment: Alignment.bottomRight,
                 children: [
@@ -117,7 +125,7 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
               ),
               const SizedBox(height: 15),
               Text(
-                voterName,
+                '$firstName $lastName',
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -129,7 +137,25 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
                   style: const TextStyle(color: Colors.black54)),
               const SizedBox(height: 25),
 
-              // 🔹 Editable Info Fields
+              // Editable fields
+              _buildEditableField(
+                  icon: Icons.person,
+                  label: "First Name",
+                  value: firstName,
+                  onChanged: (v) => firstName = v),
+              const SizedBox(height: 10),
+              _buildEditableField(
+                  icon: Icons.person,
+                  label: "Last Name",
+                  value: lastName,
+                  onChanged: (v) => lastName = v),
+              const SizedBox(height: 10),
+              _buildEditableField(
+                  icon: Icons.person_outline,
+                  label: "Father's Name",
+                  value: fatherName,
+                  onChanged: (v) => fatherName = v),
+              const SizedBox(height: 10),
               _buildEditableField(
                   icon: Icons.phone_android,
                   label: "Mobile Number",
@@ -143,12 +169,14 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
                   onChanged: (v) => voterEmail = v),
               const SizedBox(height: 10),
 
-              // 🔹 Document Type Selector
+              // Document type selector
               Card(
                 elevation: 3,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: Row(
                     children: [
                       const Icon(Icons.credit_card, color: Colors.blue),
@@ -185,15 +213,17 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
                   onChanged: (v) => documentNumber = v),
               const SizedBox(height: 20),
 
-              // 🔹 Booth & Voting Info
+              // Booth & Voting Info
               Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 elevation: 4,
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      _buildInfoTile(Icons.location_on, "Booth Location", "KanjurMarg, Mumbai"),
+                      _buildInfoTile(
+                          Icons.location_on, "Booth Location", "KanjurMarg, Mumbai"),
                       _divider(),
                       _buildInfoTile(Icons.how_to_vote, "Voting Status", "Pending"),
                     ],
@@ -202,7 +232,7 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
               ),
               const SizedBox(height: 30),
 
-              // 🔹 Save + Logout Buttons
+              // Save + Logout Buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -232,7 +262,8 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
                             ),
                             TextButton(
                               onPressed: () => Navigator.pop(context, true),
-                              child: const Text("Logout", style: TextStyle(color: Colors.red)),
+                              child: const Text("Logout",
+                                  style: TextStyle(color: Colors.red)),
                             ),
                           ],
                         ),
@@ -294,7 +325,9 @@ class _VoterProfilePageState extends State<VoterProfilePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              Text(title,
+                  style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
               Text(value, style: const TextStyle(color: Colors.black54)),
             ],
