@@ -31,40 +31,50 @@ class Booth {
   });
 }
 
+// <CHANGE> Added StateDistrict model to parse JSON data
+class StateDistrict {
+  final String state;
+  final List<String> districts;
+
+  StateDistrict({
+    required this.state,
+    required this.districts,
+  });
+
+  factory StateDistrict.fromJson(Map<String, dynamic> json) {
+    return StateDistrict(
+      state: json['state'] as String,
+      districts: List<String>.from(json['districts'] as List),
+    );
+  }
+}
+
 class LocationData {
-  static final Map<String, List<String>> states = {
-    'State 1': ['District 1', 'District 2', 'District 3'],
-    'State 2': ['District 4', 'District 5'],
-    'State 3': ['District 6', 'District 7', 'District 8'],
-  };
+  // <CHANGE> Replaced hardcoded data with JSON-loaded data
+  static List<StateDistrict> stateDistrictList = [];
 
-  static final Map<String, List<String>> districts = {
-    'District 1': ['City 1', 'City 2'],
-    'District 2': ['City 3', 'City 4', 'City 5'],
-    'District 3': ['City 6'],
-    'District 4': ['City 7', 'City 8'],
-    'District 5': ['City 9'],
-    'District 6': ['City 10', 'City 11'],
-    'District 7': ['City 12'],
-    'District 8': ['City 13', 'City 14'],
-  };
+  static Future<void> loadFromJson(String jsonString) async {
+    try {
+      final List<dynamic> jsonData = jsonDecode(jsonString);
+      stateDistrictList = jsonData
+          .map((item) => StateDistrict.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      print('Error loading JSON: $e');
+    }
+  }
 
-  static final Map<String, List<String>> areas = {
-    'City 1': ['Area 1', 'Area 2'],
-    'City 2': ['Area 3'],
-    'City 3': ['Area 4', 'Area 5'],
-    'City 4': ['Area 6'],
-    'City 5': ['Area 7', 'Area 8'],
-    'City 6': ['Area 9'],
-    'City 7': ['Area 10', 'Area 11'],
-    'City 8': ['Area 12'],
-    'City 9': ['Area 13'],
-    'City 10': ['Area 14', 'Area 15'],
-    'City 11': ['Area 16'],
-    'City 12': ['Area 17'],
-    'City 13': ['Area 18', 'Area 19'],
-    'City 14': ['Area 20'],
-  };
+  static List<String> getStates() {
+    return stateDistrictList.map((sd) => sd.state).toList();
+  }
+
+  static List<String> getDistricts(String state) {
+    final stateData = stateDistrictList.firstWhere(
+          (sd) => sd.state == state,
+      orElse: () => StateDistrict(state: '', districts: []),
+    );
+    return stateData.districts;
+  }
 }
 
 class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
@@ -74,8 +84,6 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
 
   String? selectedState;
   String? selectedDistrict;
-  String? selectedCity;
-  String? selectedArea;
 
   LatLng? selectedLocation;
   GoogleMapController? _mapController;
@@ -85,14 +93,39 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
 
   bool _initializing = true;
   bool _geocoding = false;
+  bool _loadingJson = true;
   Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
-    _setInitialLocation().then((_) {
-      _fetchSavedBooths();
+    _loadJsonData().then((_) {
+      _setInitialLocation().then((_) {
+        _fetchSavedBooths();
+      });
     });
+  }
+
+  // <CHANGE> Added method to load JSON from assets
+  Future<void> _loadJsonData() async {
+    try {
+      final String jsonString =
+      await DefaultAssetBundle.of(context).loadString('assets/states_districts.json');
+      await LocationData.loadFromJson(jsonString);
+      if (!mounted) return;
+      setState(() {
+        _loadingJson = false;
+      });
+    } catch (e) {
+      print('Error loading JSON: $e');
+      if (!mounted) return;
+      setState(() {
+        _loadingJson = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to load location data')),
+      );
+    }
   }
 
   @override
@@ -271,8 +304,6 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
       radius = 50;
       selectedState = null;
       selectedDistrict = null;
-      selectedCity = null;
-      selectedArea = null;
     });
     if (selectedLocation != null) {
       _mapController?.animateCamera(
@@ -424,6 +455,21 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
   Widget build(BuildContext context) {
     const blue = Colors.blue;
 
+    // <CHANGE> Added loading state for JSON data
+    if (_loadingJson) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Add Polling Booth'),
+          backgroundColor: blue,
+          foregroundColor: Colors.white,
+          elevation: 1.5,
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(color: blue),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Polling Booth'),
@@ -448,6 +494,7 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                     key: _formKey,
                     child: Column(
                       children: [
+                        // <CHANGE> Updated State dropdown to use JSON data
                         DropdownButtonFormField<String>(
                           value: selectedState,
                           decoration: InputDecoration(
@@ -464,20 +511,18 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                               borderSide: BorderSide(color: blue, width: 2),
                             ),
                           ),
-                          items: LocationData.states.keys
+                          items: LocationData.getStates()
                               .map(
                                 (state) => DropdownMenuItem(
-                                  value: state,
-                                  child: Text(state),
-                                ),
-                              )
+                              value: state,
+                              child: Text(state),
+                            ),
+                          )
                               .toList(),
                           onChanged: (value) {
                             setState(() {
                               selectedState = value;
                               selectedDistrict = null;
-                              selectedCity = null;
-                              selectedArea = null;
                             });
                           },
                           validator: (v) {
@@ -489,6 +534,7 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                         ),
                         const SizedBox(height: 16),
 
+                        // <CHANGE> Updated District dropdown to use JSON data
                         if (selectedState != null)
                           DropdownButtonFormField<String>(
                             value: selectedDistrict,
@@ -506,19 +552,17 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                                 borderSide: BorderSide(color: blue, width: 2),
                               ),
                             ),
-                            items: (LocationData.states[selectedState] ?? [])
+                            items: LocationData.getDistricts(selectedState!)
                                 .map(
                                   (district) => DropdownMenuItem(
-                                    value: district,
-                                    child: Text(district),
-                                  ),
-                                )
+                                value: district,
+                                child: Text(district),
+                              ),
+                            )
                                 .toList(),
                             onChanged: (value) {
                               setState(() {
                                 selectedDistrict = value;
-                                selectedCity = null;
-                                selectedArea = null;
                               });
                             },
                             validator: (v) {
@@ -531,84 +575,7 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                         if (selectedDistrict != null)
                           const SizedBox(height: 16),
 
-                        if (selectedDistrict != null)
-                          DropdownButtonFormField<String>(
-                            value: selectedCity,
-                            decoration: InputDecoration(
-                              labelText: 'Assembly Constituency',
-                              // Changed from 'City'
-                              prefixIcon: const Icon(
-                                Icons.apartment,
-                                color: blue,
-                              ),
-                              labelStyle: const TextStyle(color: blue),
-                              enabledBorder: const OutlineInputBorder(
-                                borderSide: BorderSide(color: blue),
-                              ),
-                              focusedBorder: const OutlineInputBorder(
-                                borderSide: BorderSide(color: blue, width: 2),
-                              ),
-                            ),
-                            items:
-                                (LocationData.districts[selectedDistrict] ?? [])
-                                    .map(
-                                      (city) => DropdownMenuItem(
-                                        value: city,
-                                        child: Text(city),
-                                      ),
-                                    )
-                                    .toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                selectedCity = value;
-                                selectedArea = null;
-                              });
-                            },
-                            validator: (v) {
-                              if (v == null || v.isEmpty) {
-                                return 'Please select an assembly constituency';
-                              }
-                              return null;
-                            },
-                          ),
-                        if (selectedCity != null) const SizedBox(height: 16),
-
-                        if (selectedCity != null)
-                          DropdownButtonFormField<String>(
-                            value: selectedArea,
-                            decoration: InputDecoration(
-                              labelText: 'Part Name and No.',
-                              // Changed from 'Area'
-                              prefixIcon: const Icon(Icons.home, color: blue),
-                              labelStyle: const TextStyle(color: blue),
-                              enabledBorder: const OutlineInputBorder(
-                                borderSide: BorderSide(color: blue),
-                              ),
-                              focusedBorder: const OutlineInputBorder(
-                                borderSide: BorderSide(color: blue, width: 2),
-                              ),
-                            ),
-                            items: (LocationData.areas[selectedCity] ?? [])
-                                .map(
-                                  (area) => DropdownMenuItem(
-                                    value: area,
-                                    child: Text(area),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                selectedArea = value;
-                              });
-                            },
-                            validator: (v) {
-                              if (v == null || v.isEmpty) {
-                                return 'Please select a part name and no.';
-                              }
-                              return null;
-                            },
-                          ),
-                        if (selectedCity != null) const SizedBox(height: 16),
+                        // <CHANGE> Removed City and Area dropdowns
 
                         // Booth Name
                         TextFormField(
@@ -653,13 +620,13 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                                       : _forwardGeocodeAndMove,
                                   icon: _geocoding
                                       ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: blue,
-                                          ),
-                                        )
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: blue,
+                                    ),
+                                  )
                                       : const Icon(Icons.search, color: blue),
                                 ),
                                 IconButton(
@@ -737,101 +704,101 @@ class _AddPollingBoothPageState extends State<AddPollingBoothPage> {
                     height: 360,
                     child: _initializing
                         ? const Center(
-                            child: CircularProgressIndicator(color: blue),
-                          )
+                      child: CircularProgressIndicator(color: blue),
+                    )
                         : selectedLocation == null
                         ? const Center(
-                            child: Text('Tap the map or use current location'),
-                          )
+                      child: Text('Tap the map or use current location'),
+                    )
                         : RepaintBoundary(
-                            child: GoogleMap(
-                              initialCameraPosition: CameraPosition(
-                                target: selectedLocation!,
-                                zoom: 16,
+                      child: GoogleMap(
+                        initialCameraPosition: CameraPosition(
+                          target: selectedLocation!,
+                          zoom: 16,
+                        ),
+                        onMapCreated: (c) => _mapController = c,
+                        onTap: _onMapTap,
+                        myLocationButtonEnabled: false,
+                        myLocationEnabled: false,
+                        markers: {
+                          if (selectedLocation != null)
+                            Marker(
+                              markerId: const MarkerId('current'),
+                              position: selectedLocation!,
+                              icon: BitmapDescriptor.defaultMarkerWithHue(
+                                BitmapDescriptor.hueBlue,
                               ),
-                              onMapCreated: (c) => _mapController = c,
-                              onTap: _onMapTap,
-                              myLocationButtonEnabled: false,
-                              myLocationEnabled: false,
-                              markers: {
-                                if (selectedLocation != null)
-                                  Marker(
-                                    markerId: const MarkerId('current'),
-                                    position: selectedLocation!,
-                                    icon: BitmapDescriptor.defaultMarkerWithHue(
-                                      BitmapDescriptor.hueBlue,
-                                    ),
-                                    infoWindow: InfoWindow(
-                                      title: _nameCtrl.text.isEmpty
-                                          ? 'Selected Location'
-                                          : _nameCtrl.text,
-                                      snippet: _addressCtrl.text,
-                                    ),
-                                  ),
-                                ...savedBooths.map(
-                                  (b) => Marker(
-                                    markerId: MarkerId(b.name),
-                                    position: b.location,
-                                    infoWindow: InfoWindow(
-                                      title: b.name,
-                                      snippet: b.address,
-                                    ),
-                                    icon: BitmapDescriptor.defaultMarkerWithHue(
-                                      BitmapDescriptor.hueGreen,
-                                    ),
-                                  ),
-                                ),
-                              },
-                              circles: {
-                                if (selectedLocation != null)
-                                  Circle(
-                                    circleId: const CircleId('currentRadius'),
-                                    center: selectedLocation!,
-                                    radius: radius,
-                                    fillColor: Colors.blueAccent.withOpacity(
-                                      0.2,
-                                    ),
-                                    strokeColor: blue,
-                                    strokeWidth: 2,
-                                  ),
-                                ...savedBooths.map(
-                                  (b) => Circle(
-                                    circleId: CircleId(b.name),
-                                    center: b.location,
-                                    radius: b.radius,
-                                    fillColor: Colors.greenAccent.withOpacity(
-                                      0.2,
-                                    ),
-                                    strokeColor: Colors.green,
-                                    strokeWidth: 2,
-                                  ),
-                                ),
-                              },
-                              zoomControlsEnabled: true,
-                              zoomGesturesEnabled: true,
-                              scrollGesturesEnabled: true,
-                              rotateGesturesEnabled: true,
-                              tiltGesturesEnabled: false,
-                              gestureRecognizers:
-                                  <Factory<OneSequenceGestureRecognizer>>{
-                                    Factory<PanGestureRecognizer>(
-                                      () => PanGestureRecognizer(),
-                                    ),
-                                    Factory<ScaleGestureRecognizer>(
-                                      () => ScaleGestureRecognizer(),
-                                    ),
-                                    Factory<TapGestureRecognizer>(
-                                      () => TapGestureRecognizer(),
-                                    ),
-                                    Factory<VerticalDragGestureRecognizer>(
-                                      () => VerticalDragGestureRecognizer(),
-                                    ),
-                                    Factory<HorizontalDragGestureRecognizer>(
-                                      () => HorizontalDragGestureRecognizer(),
-                                    ),
-                                  },
+                              infoWindow: InfoWindow(
+                                title: _nameCtrl.text.isEmpty
+                                    ? 'Selected Location'
+                                    : _nameCtrl.text,
+                                snippet: _addressCtrl.text,
+                              ),
+                            ),
+                          ...savedBooths.map(
+                                (b) => Marker(
+                              markerId: MarkerId(b.name),
+                              position: b.location,
+                              infoWindow: InfoWindow(
+                                title: b.name,
+                                snippet: b.address,
+                              ),
+                              icon: BitmapDescriptor.defaultMarkerWithHue(
+                                BitmapDescriptor.hueGreen,
+                              ),
                             ),
                           ),
+                        },
+                        circles: {
+                          if (selectedLocation != null)
+                            Circle(
+                              circleId: const CircleId('currentRadius'),
+                              center: selectedLocation!,
+                              radius: radius,
+                              fillColor: Colors.blueAccent.withOpacity(
+                                0.2,
+                              ),
+                              strokeColor: blue,
+                              strokeWidth: 2,
+                            ),
+                          ...savedBooths.map(
+                                (b) => Circle(
+                              circleId: CircleId(b.name),
+                              center: b.location,
+                              radius: b.radius,
+                              fillColor: Colors.greenAccent.withOpacity(
+                                0.2,
+                              ),
+                              strokeColor: Colors.green,
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        },
+                        zoomControlsEnabled: true,
+                        zoomGesturesEnabled: true,
+                        scrollGesturesEnabled: true,
+                        rotateGesturesEnabled: true,
+                        tiltGesturesEnabled: false,
+                        gestureRecognizers:
+                        <Factory<OneSequenceGestureRecognizer>>{
+                          Factory<PanGestureRecognizer>(
+                                () => PanGestureRecognizer(),
+                          ),
+                          Factory<ScaleGestureRecognizer>(
+                                () => ScaleGestureRecognizer(),
+                          ),
+                          Factory<TapGestureRecognizer>(
+                                () => TapGestureRecognizer(),
+                          ),
+                          Factory<VerticalDragGestureRecognizer>(
+                                () => VerticalDragGestureRecognizer(),
+                          ),
+                          Factory<HorizontalDragGestureRecognizer>(
+                                () => HorizontalDragGestureRecognizer(),
+                          ),
+                        },
+                      ),
+                    ),
                   ),
                 ),
               ),

@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 class ViewAllBoothsPage extends StatefulWidget {
   const ViewAllBoothsPage({super.key});
@@ -8,27 +10,53 @@ class ViewAllBoothsPage extends StatefulWidget {
 }
 
 class _ViewAllBoothsPageState extends State<ViewAllBoothsPage> {
-  final Map<String, Map<String, Map<String, Map<String, int>>>> pollingData = {
-    'Maharashtra': {
-      'Mumbai': {
-        'CST': {'Ward 1': 5, 'Ward 2': 5},
-        'Mulund': {'Sector 1': 7, 'Sector 2': 8},
-        'Thane': {'Zone A': 8, 'Zone B': 7},
-      },
-      'Pune': {
-        'Shivajinagar': {'Block 1': 5, 'Block 2': 5},
-        'Kothrud': {'Block 1': 5, 'Block 2': 5},
-      },
-    },
-    'Gujarat': {
-      'Ahmedabad': {
-        'Navrangpura': {'Area 1': 5, 'Area 2': 5},
-        'Paldi': {'Area 1': 6, 'Area 2': 6},
-      },
-    },
-  };
-
+  Map<String, Map<String, Map<String, Map<String, int>>>> pollingData = {};
+  bool isLoading = true;
   String searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    fetchBooths();
+  }
+
+  Future<void> fetchBooths() async {
+    try {
+      final response =
+      await http.get(Uri.parse('http://13.61.32.111:3000/api/admin/booths'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        // Transform API response into nested map structure
+        final Map<String, Map<String, Map<String, Map<String, int>>>> transformed = {};
+        for (var booth in data) {
+          String state = booth['state'];
+          String district = booth['district'];
+          String assembly = booth['assembly_constituency'];
+          String part = booth['part_name'];
+          int booths = booth['booths'] ?? 1;
+
+          transformed[state] ??= {};
+          transformed[state]![district] ??= {};
+          transformed[state]![district]![assembly] ??= {};
+          transformed[state]![district]![assembly]![part] = booths;
+        }
+
+        setState(() {
+          pollingData = transformed;
+          isLoading = false;
+        });
+      } else {
+        throw Exception('Failed to load booths');
+      }
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching booths: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +69,9 @@ class _ViewAllBoothsPageState extends State<ViewAllBoothsPage> {
         title: const Text('Polling Booths - States'),
         backgroundColor: Colors.blue,
       ),
-      body: Column(
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(12),
@@ -68,9 +98,9 @@ class _ViewAllBoothsPageState extends State<ViewAllBoothsPage> {
                 final stateEntry = filteredStates[index];
                 final stateName = stateEntry.key;
                 final totalBooths = stateEntry.value.values
-                    .map((city) => city.values
-                    .map((subCity) => subCity.values
-                    .fold<int>(0, (a, b) => a + b))
+                    .map((district) => district.values
+                    .map((assembly) =>
+                    assembly.values.fold<int>(0, (a, b) => a + b))
                     .fold<int>(0, (a, b) => a + b))
                     .fold<int>(0, (a, b) => a + b);
                 return Card(
@@ -90,9 +120,9 @@ class _ViewAllBoothsPageState extends State<ViewAllBoothsPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => CitiesPage(
+                          builder: (_) => DistrictsPage(
                             stateName: stateName,
-                            cities: stateEntry.value,
+                            districts: stateEntry.value,
                           ),
                         ),
                       );
@@ -108,28 +138,28 @@ class _ViewAllBoothsPageState extends State<ViewAllBoothsPage> {
   }
 }
 
-// ----------------- Cities Page -----------------
-class CitiesPage extends StatefulWidget {
+// ----------------- Districts Page -----------------
+class DistrictsPage extends StatefulWidget {
   final String stateName;
-  final Map<String, Map<String, Map<String, int>>> cities;
-  const CitiesPage({super.key, required this.stateName, required this.cities});
+  final Map<String, Map<String, Map<String, int>>> districts;
+  const DistrictsPage({super.key, required this.stateName, required this.districts});
 
   @override
-  State<CitiesPage> createState() => _CitiesPageState();
+  State<DistrictsPage> createState() => _DistrictsPageState();
 }
 
-class _CitiesPageState extends State<CitiesPage> {
+class _DistrictsPageState extends State<DistrictsPage> {
   String searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
-    final filteredCities = widget.cities.entries
+    final filteredDistricts = widget.districts.entries
         .where((e) => e.key.toLowerCase().contains(searchQuery.toLowerCase()))
         .toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.stateName} - Cities'),
+        title: Text('${widget.stateName} - Districts'),
         backgroundColor: Colors.blue,
       ),
       body: Column(
@@ -138,7 +168,7 @@ class _CitiesPageState extends State<CitiesPage> {
             padding: const EdgeInsets.all(12),
             child: TextField(
               decoration: const InputDecoration(
-                hintText: 'Search City...',
+                hintText: 'Search District...',
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(8)),
@@ -154,18 +184,18 @@ class _CitiesPageState extends State<CitiesPage> {
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(12),
-              itemCount: filteredCities.length,
+              itemCount: filteredDistricts.length,
               itemBuilder: (context, index) {
-                final cityEntry = filteredCities[index];
-                final cityName = cityEntry.key;
-                final totalBooths = cityEntry.value.values
-                    .map((subCity) => subCity.values.fold<int>(0, (a, b) => a + b))
+                final districtEntry = filteredDistricts[index];
+                final districtName = districtEntry.key;
+                final totalBooths = districtEntry.value.values
+                    .map((assembly) => assembly.values.fold<int>(0, (a, b) => a + b))
                     .fold<int>(0, (a, b) => a + b);
                 return Card(
                   elevation: 2,
                   margin: const EdgeInsets.symmetric(vertical: 6),
                   child: ListTile(
-                    title: Text(cityName),
+                    title: Text(districtName),
                     trailing: Text(
                       '$totalBooths booths',
                       style: const TextStyle(
@@ -178,9 +208,9 @@ class _CitiesPageState extends State<CitiesPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => SubCitiesPage(
-                            cityName: cityName,
-                            subCities: cityEntry.value,
+                          builder: (_) => AssemblyPage(
+                            districtName: districtName,
+                            assemblies: districtEntry.value,
                           ),
                         ),
                       );
@@ -196,28 +226,28 @@ class _CitiesPageState extends State<CitiesPage> {
   }
 }
 
-// ----------------- Sub-cities Page -----------------
-class SubCitiesPage extends StatefulWidget {
-  final String cityName;
-  final Map<String, Map<String, int>> subCities;
-  const SubCitiesPage({super.key, required this.cityName, required this.subCities});
+// ----------------- Assembly Constituencies Page -----------------
+class AssemblyPage extends StatefulWidget {
+  final String districtName;
+  final Map<String, Map<String, int>> assemblies;
+  const AssemblyPage({super.key, required this.districtName, required this.assemblies});
 
   @override
-  State<SubCitiesPage> createState() => _SubCitiesPageState();
+  State<AssemblyPage> createState() => _AssemblyPageState();
 }
 
-class _SubCitiesPageState extends State<SubCitiesPage> {
+class _AssemblyPageState extends State<AssemblyPage> {
   String searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
-    final filteredSubCities = widget.subCities.entries
+    final filteredAssemblies = widget.assemblies.entries
         .where((e) => e.key.toLowerCase().contains(searchQuery.toLowerCase()))
         .toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.cityName} - Localities'),
+        title: Text('${widget.districtName} - Assembly Constituencies'),
         backgroundColor: Colors.blue,
       ),
       body: Column(
@@ -226,7 +256,7 @@ class _SubCitiesPageState extends State<SubCitiesPage> {
             padding: const EdgeInsets.all(12),
             child: TextField(
               decoration: const InputDecoration(
-                hintText: 'Search Locality...',
+                hintText: 'Search Assembly...',
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(8)),
@@ -242,17 +272,17 @@ class _SubCitiesPageState extends State<SubCitiesPage> {
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(12),
-              itemCount: filteredSubCities.length,
+              itemCount: filteredAssemblies.length,
               itemBuilder: (context, index) {
-                final subCityEntry = filteredSubCities[index];
-                final subCityName = subCityEntry.key;
-                final totalBooths = subCityEntry.value.values.fold<int>(0, (a, b) => a + b);
+                final assemblyEntry = filteredAssemblies[index];
+                final assemblyName = assemblyEntry.key;
+                final totalBooths = assemblyEntry.value.values.fold<int>(0, (a, b) => a + b);
 
                 return Card(
                   elevation: 2,
                   margin: const EdgeInsets.symmetric(vertical: 6),
                   child: ListTile(
-                    title: Text(subCityName),
+                    title: Text(assemblyName),
                     trailing: Text(
                       '$totalBooths booths',
                       style: const TextStyle(
@@ -265,9 +295,9 @@ class _SubCitiesPageState extends State<SubCitiesPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => SubSubCitiesPage(
-                            subCityName: subCityName,
-                            subSubCities: subCityEntry.value,
+                          builder: (_) => PartPage(
+                            assemblyName: assemblyName,
+                            parts: assemblyEntry.value,
                           ),
                         ),
                       );
@@ -283,28 +313,28 @@ class _SubCitiesPageState extends State<SubCitiesPage> {
   }
 }
 
-// ----------------- Sub-Sub-cities Page -----------------
-class SubSubCitiesPage extends StatefulWidget {
-  final String subCityName;
-  final Map<String, int> subSubCities;
-  const SubSubCitiesPage({super.key, required this.subCityName, required this.subSubCities});
+// ----------------- Part Names Page -----------------
+class PartPage extends StatefulWidget {
+  final String assemblyName;
+  final Map<String, int> parts;
+  const PartPage({super.key, required this.assemblyName, required this.parts});
 
   @override
-  State<SubSubCitiesPage> createState() => _SubSubCitiesPageState();
+  State<PartPage> createState() => _PartPageState();
 }
 
-class _SubSubCitiesPageState extends State<SubSubCitiesPage> {
+class _PartPageState extends State<PartPage> {
   String searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
-    final filteredSubSubCities = widget.subSubCities.entries
+    final filteredParts = widget.parts.entries
         .where((e) => e.key.toLowerCase().contains(searchQuery.toLowerCase()))
         .toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.subCityName} - Sub Localities'),
+        title: Text('${widget.assemblyName} - Part Names'),
         backgroundColor: Colors.blue,
       ),
       body: Column(
@@ -313,7 +343,7 @@ class _SubSubCitiesPageState extends State<SubSubCitiesPage> {
             padding: const EdgeInsets.all(12),
             child: TextField(
               decoration: const InputDecoration(
-                hintText: 'Search Sub-locality...',
+                hintText: 'Search Part...',
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(8)),
@@ -329,15 +359,15 @@ class _SubSubCitiesPageState extends State<SubSubCitiesPage> {
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(12),
-              itemCount: filteredSubSubCities.length,
+              itemCount: filteredParts.length,
               itemBuilder: (context, index) {
-                final subSubCityName = filteredSubSubCities[index].key;
-                final booths = filteredSubSubCities[index].value;
+                final partName = filteredParts[index].key;
+                final booths = filteredParts[index].value;
                 return Card(
                   elevation: 2,
                   margin: const EdgeInsets.symmetric(vertical: 6),
                   child: ListTile(
-                    title: Text(subSubCityName),
+                    title: Text(partName),
                     trailing: Text(
                       '$booths booths',
                       style: const TextStyle(
@@ -348,7 +378,7 @@ class _SubSubCitiesPageState extends State<SubSubCitiesPage> {
                     ),
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Clicked $subSubCityName in ${widget.subCityName}')),
+                        SnackBar(content: Text('Clicked $partName in ${widget.assemblyName}')),
                       );
                     },
                   ),
