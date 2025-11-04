@@ -23,6 +23,16 @@ dependencies:
   charts_flutter: ^0.12.0
   intl: ^0.17.0
   fl_chart: ^1.1.1
+  camera: ^0.11.2+1
+  path_provider: ^2.0.15
+  rename: ^3.1.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_polyline_points: ^2.0.0
+  google_places_flutter: ^2.0.7
+  location: ^6.0.2
+  lottie: ^3.1.0
+  permission_handler: ^11.3.0
+  cached_network_image: ^3.2.3
 
 
 dev_dependencies:
@@ -40,6 +50,7 @@ flutter:
     - assets/home3.png
     - assets/back_button.png
     - assets/states_districts.json
+    - assets/india_flag.jpg
 
   # To add assets (images/fonts), uncomment and configure below:
   # assets:

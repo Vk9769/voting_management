@@ -10,6 +10,10 @@ import 'view_all_agents.dart';
 import 'all_voting_status_page.dart';
 import 'admin_profile_page.dart';
 import 'admin_message_center_page.dart';
+import 'view_all_voters.dart';
+import 'view_candidate.dart';
+import 'travel_page.dart';
+
 
 /// Utility to format large numbers
 String formatNumber(int number) {
@@ -134,8 +138,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       case 1:
         return const AdminMessageCenterPage(); // <-- use your page here
       case 2:
-        return const Center(
-            child: Text("Travel Page", style: TextStyle(fontSize: 24)));
+        return const TravelPage();
       default:
         return _dashboardBody();
     }
@@ -606,6 +609,30 @@ class _ActionsRow extends StatelessWidget {
       spacing: 12,
       runSpacing: 12,
       children: [
+        // View Candidate List
+        SizedBox(
+          width: wide ? 260 : double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => AdminCandidatesPage()),
+              );
+            },
+            icon: const Icon(Icons.location_on),
+            label: const Text('View Candidate List'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.blue,
+              side: const BorderSide(color: Colors.blue, width: 1.25),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+
         // Add Polling Booth
         SizedBox(
           width: wide ? 260 : double.infinity,
@@ -693,6 +720,29 @@ class _ActionsRow extends StatelessWidget {
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.blue,
               side: const BorderSide(color: Colors.blue, width: 1.25),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+
+        SizedBox(
+          width: wide ? 260 : double.infinity,
+          child: FilledButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => ViewAllVotersPage()),
+              );
+            },
+            icon: const Icon(Icons.people_alt),
+            label: const Text('View All Voters'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),

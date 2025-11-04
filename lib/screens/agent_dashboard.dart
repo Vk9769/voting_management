@@ -106,9 +106,9 @@ class _AgentDashboardState extends State<AgentDashboard> {
   Future<void> _loadAgentData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      agentName = prefs.getString('agent_name') ?? 'Unknown Agent';
-      boothName = prefs.getString('booth_name') ?? 'Booth N/A';
-      boothWard = prefs.getString('booth_ward') ?? 'Ward N/A';
+      agentName = prefs.getString('agent_name') ?? 'Abc';
+      boothName = prefs.getString('booth_name') ?? 'MADHYA VIDHYALA MADHURA ANUSUCHIT DAKSHIN BHAG';
+      boothWard = prefs.getString('booth_ward') ?? '100';
       boothCode = prefs.getString('booth_code') ?? 'BTH-N/A';
 
       // Generate voters dynamically for this booth

@@ -27,9 +27,9 @@ class _AgentVotingPageState extends State<AgentVotingPage> {
   Future<void> _loadAgentData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      agentName = prefs.getString('user_name') ?? 'Unknown Agent';
+      agentName = prefs.getString('user_name') ?? 'Amit';
       agentEmail = prefs.getString('user_email') ?? 'Not Available';
-      agentId = prefs.getString('user_id') ?? 'N/A';
+      agentId = prefs.getString('1000') ?? '1000';
       hasVoted = prefs.getBool('has_voted') ?? false;
     });
   }
@@ -137,9 +137,9 @@ class _AgentVotingPageState extends State<AgentVotingPage> {
                           context,
                           MaterialPageRoute(
                             builder: (context) => PollingBoothMapPagee(
-                              boothName: "Booth 12, KanjurMarg",
-                              boothLat: 19.128917,
-                              boothLng: 72.926611,
+                              boothName: "100-MADHYA VIDHYALA MADHURA ANUSUCHIT DAKSHIN BHAG, BIHAR",
+                              boothLat: 26.145685863730833,
+                              boothLng: 84.29060636137021,
                               agentName: agentName, // ✅ Pass the agent name here
                               agentId: agentId,     // ✅ Pass the agent ID here
                             ),

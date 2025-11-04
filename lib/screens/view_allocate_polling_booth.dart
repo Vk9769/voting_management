@@ -18,11 +18,11 @@ class _ViewAllocatePollingBoothPageState extends State<ViewAllocatePollingBoothP
   double? _distanceMeters;
 
   // Demo agent & booth info (features unchanged)
-  final String agentName = 'A. Khan';
+  final String agentName = 'ABC';
   final String agentId = 'AGT-0013';
-  final String boothName = 'Booth #13';
-  final double boothLat = 19.0760;
-  final double boothLng = 72.8777;
+  final String boothName = 'Booth 100';
+  final double boothLat = 26.145685863730833;
+  final double boothLng = 84.29060636137021;
   final double boothRadius = 100.0; // meters
 
   @override

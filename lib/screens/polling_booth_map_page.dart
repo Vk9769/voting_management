@@ -253,10 +253,17 @@ class _PollingBoothMapPageeState extends State<PollingBoothMapPagee> {
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              // children: [
+                              //   Text('Agent: ${widget.agentName}',
+                              //       style: const TextStyle(fontWeight: FontWeight.w700)),
+                              //   Text('ID: ${widget.agentId}'),
+                              //   Text('Booth: ${widget.boothName}',
+                              //       style: const TextStyle(fontSize: 16)),
+                              // ],
                               children: [
-                                Text('Agent: ${widget.agentName}',
+                                Text('Agent: ABC',
                                     style: const TextStyle(fontWeight: FontWeight.w700)),
-                                Text('ID: ${widget.agentId}'),
+                                Text('ID: MH/2025/56725'),
                                 Text('Booth: ${widget.boothName}',
                                     style: const TextStyle(fontSize: 16)),
                               ],

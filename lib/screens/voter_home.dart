@@ -5,6 +5,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'polling_booth_map_page.dart';
 import 'report_page.dart';
 import 'voter_profile_page.dart';
+import 'selfie_point_page.dart';
+import 'voter_news_page.dart';
+import 'voter_chat_page.dart';
+
 
 class VoterHomePage extends StatefulWidget {
   const VoterHomePage({super.key});
@@ -26,13 +30,23 @@ class _VoterHomePageState extends State<VoterHomePage> {
     _loadVoterData();
   }
 
+  // Future<void> _loadVoterData() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   setState(() {
+  //     voterName = prefs.getString('user_name') ?? 'Unknown Voter';
+  //     voterEmail = prefs.getString('user_email') ?? 'Not Available';
+  //     voterId = prefs.getString('user_id') ?? 'N/A';
+  //     hasVoted = prefs.getBool('has_voted') ?? false;
+  //   });
+  // }
+
   Future<void> _loadVoterData() async {
-    final prefs = await SharedPreferences.getInstance();
+    // Dummy Data for now
     setState(() {
-      voterName = prefs.getString('user_name') ?? 'Unknown Voter';
-      voterEmail = prefs.getString('user_email') ?? 'Not Available';
-      voterId = prefs.getString('user_id') ?? 'N/A';
-      hasVoted = prefs.getBool('has_voted') ?? false;
+      voterName = "George";
+      voterEmail = "george@example.com";
+      voterId = "MH/19/123/456789"; // looks like Indian voter ID format
+      hasVoted = false;
     });
   }
 
@@ -278,27 +292,44 @@ class _VoterHomePageState extends State<VoterHomePage> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => PollingBoothMapPagee(
-                            boothName: "Booth 12, KanjurMarg",
-                            boothLat: 19.128917,
-                            boothLng: 72.926611,
+                            boothName: "100-MADHYA VIDHYALA MADHURA ANUSUCHIT DAKSHIN BHAG, BIHAR",
+                            boothLat: 26.145685863730833,
+                            boothLng: 84.29060636137021,
                           ),
                         ),
                       );
                     },
                   ),
-                  _buildDivider(),
+                  _buildListTile(
+                    icon: Icons.photo_camera,
+                    title: "Selfie Point",
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SelfiePointPage()),
+                      );
+                    },
+                  ),
                   _buildListTile(
                     icon: Icons.newspaper,
                     title: "Daily News",
-                    onTap: () => Fluttertoast.showToast(
-                        msg: "Daily news coming soon"),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const VoterNewsPage()),
+                      );
+                    },
                   ),
                   _buildDivider(),
                   _buildListTile(
                     icon: Icons.message,
                     title: "Messages",
-                    onTap: () => Fluttertoast.showToast(
-                        msg: "Messages feature coming soon"),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const VoterChatPage()),
+                      );
+                    },
                   ),
                   _buildDivider(),
                   _buildListTile(

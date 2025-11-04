@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class ViewAllBoothsPage extends StatefulWidget {
   const ViewAllBoothsPage({super.key});
@@ -21,19 +23,47 @@ class _ViewAllBoothsPageState extends State<ViewAllBoothsPage> {
   }
 
   Future<void> fetchBooths() async {
+    setState(() {
+      isLoading = true;
+    });
+
     try {
-      final response =
-      await http.get(Uri.parse('http://13.61.32.111:3000/api/admin/booths'));
+      // 1️⃣ Get token from SharedPreferences
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('auth_token');
+
+      if (token == null) {
+        throw Exception("No token found. Please login again.");
+      }
+      final response = await http.get(
+        Uri.parse('http://13.61.32.111:3000/api/admin/booths'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      // 🔹 Debug logs
+      print('Status Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+
+        // Ensure the API returned a List
+        if (data is! List) {
+          throw Exception('Unexpected response format. Expected a List.');
+        }
+
         // Transform API response into nested map structure
         final Map<String, Map<String, Map<String, Map<String, int>>>> transformed = {};
+
         for (var booth in data) {
-          String state = booth['state'];
-          String district = booth['district'];
-          String assembly = booth['assembly_constituency'];
-          String part = booth['part_name'];
-          int booths = booth['booths'] ?? 1;
+          String state = booth['state']?.toString() ?? 'Unknown';
+          String district = booth['district']?.toString() ?? 'Unknown';
+          String assembly = booth['assembly_constituency']?.toString() ?? 'Unknown';
+          String part = booth['part_name']?.toString() ?? 'Unknown';
+          int booths = (booth['booths'] is int) ? booth['booths'] : 1;
 
           transformed[state] ??= {};
           transformed[state]![district] ??= {};
@@ -46,15 +76,20 @@ class _ViewAllBoothsPageState extends State<ViewAllBoothsPage> {
           isLoading = false;
         });
       } else {
-        throw Exception('Failed to load booths');
+        throw Exception('Failed to load booths: ${response.reasonPhrase}');
       }
     } catch (e) {
       setState(() {
         isLoading = false;
       });
+
+      // Show error snackbar
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error fetching booths: $e')),
       );
+
+      // Also print for debug console
+      print('Error fetching booths: $e');
     }
   }
 

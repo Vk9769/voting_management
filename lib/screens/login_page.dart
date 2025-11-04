@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'signup_page.dart';
 import 'voter_home.dart';
-import 'admin_dashboard.dart'; // import the dashboard page
-import 'agent_dashboard.dart'; // make sure this file exists
+import 'admin_dashboard.dart';
+import 'agent_dashboard.dart';
 import 'candidate_dashboard.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-
-// Simple validators to replace 'validators' package
+// Simple validators
 bool isEmail(String input) {
   return RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$").hasMatch(input);
 }
@@ -34,139 +33,117 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
 
   void _login() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+    if (!_formKey.currentState!.validate()) return;
 
-      String identifier = _identifierController.text.trim();
-      String password = _passwordController.text.trim();
+    setState(() => _isLoading = true);
 
-      try {
-        // 🔹 Test server connection first
-        try {
-          final res = await http.get(Uri.parse("http://13.61.32.111:3000"));
-          print("Server response: ${res.body}");
-        } catch (e) {
-          print("Connection failed: $e");
-          Fluttertoast.showToast(
-            msg: "Cannot connect to server. Check network / port",
-            backgroundColor: Colors.red,
-          );
-          setState(() => _isLoading = false);
-          return; // Stop login if server unreachable
-        }
+    String identifier = _identifierController.text.trim();
+    String password = _passwordController.text.trim();
 
-        // 🌐 Backend login URL
-        const String baseUrl = "http://13.61.32.111:3000/api/auth";
+    try {
+      const String baseUrl = "http://13.61.32.111:3000/api/auth";
 
-        // Step 1️⃣ Login Request
-        final loginResponse = await http.post(
-          Uri.parse("$baseUrl/login"),
-          headers: {"Content-Type": "application/json"},
-          body: jsonEncode({"identifier": identifier, "password": password}),
-        );
+      // 1️⃣ Login Request
+      final loginResponse = await http.post(
+        Uri.parse("$baseUrl/login"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"identifier": identifier, "password": password}),
+      );
 
-        final loginData = jsonDecode(loginResponse.body);
+      final loginData = jsonDecode(loginResponse.body);
 
-        if (loginResponse.statusCode == 200) {
-          String token = loginData["token"];
-          var user = loginData["user"];
-
-          // Save token & user info locally
-          SharedPreferences prefs = await SharedPreferences.getInstance();
-          await prefs.setString("auth_token", token);
-          await prefs.setString("user_id", user["id"]);
-          await prefs.setString("user_email", user["email"]);
-
-          Future<void> saveLogin(String token, String role) async {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setString('token', token);
-            await prefs.setString('role', role);
-          }
-
-          Fluttertoast.showToast(
-            msg: "Login successful",
-            backgroundColor: Colors.green,
-            textColor: Colors.white,
-          );
-
-          // Step 2️⃣ Fetch Roles using token
-          final rolesResponse = await http.get(
-            Uri.parse("$baseUrl/roles"),
-            headers: {
-              "Authorization": "Bearer $token",
-              "Content-Type": "application/json"
-            },
-          );
-
-          if (rolesResponse.statusCode == 200) {
-            final rolesData = jsonDecode(rolesResponse.body);
-            List roles = rolesData["roles"];
-
-            if (roles.isEmpty) {
-              Fluttertoast.showToast(
-                msg: "No role assigned to this user",
-                backgroundColor: Colors.orange,
-              );
-              return;
-            }
-
-            String userRole = roles.first.toLowerCase(); // pick the first assigned role
-
-            // Save token & role locally
-            await saveLogin(token, userRole);
-
-            // Step 3️⃣ Redirect Based on Role
-            if (userRole == "admin") {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const AdminDashboard()),
-              );
-            } else if (userRole == "agent") {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const AgentDashboard()),
-              );
-            } else if (userRole == "voter") {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const VoterHomePage()),
-              );
-            } else if (userRole == "candidate") {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const CandidateDashboard()),
-              );
-            }else {
-              Fluttertoast.showToast(
-                msg: "Unknown role: $userRole",
-                backgroundColor: Colors.red,
-              );
-            }
-          } else {
-            Fluttertoast.showToast(
-              msg: "Failed to fetch roles",
-              backgroundColor: Colors.red,
-            );
-          }
-        } else {
-          Fluttertoast.showToast(
-            msg: loginData["error"] ?? "Invalid credentials",
-            backgroundColor: Colors.red,
-            textColor: Colors.white,
-          );
-        }
-      } catch (e) {
+      if (loginResponse.statusCode != 200) {
         Fluttertoast.showToast(
-          msg: "Error: ${e.toString()}",
+          msg: loginData["error"] ?? "Invalid credentials",
           backgroundColor: Colors.red,
           textColor: Colors.white,
         );
-      } finally {
-        setState(() => _isLoading = false);
+        return;
       }
+
+      String token = loginData["token"];
+      var user = loginData["user"];
+
+      // Save token & user info
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString("auth_token", token);
+      await prefs.setString("user_id", user["id"]);
+      await prefs.setString("user_email", user["email"]);
+
+      // 2️⃣ Fetch Roles
+      final rolesResponse = await http.get(
+        Uri.parse("$baseUrl/roles"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json"
+        },
+      );
+
+      if (rolesResponse.statusCode != 200) {
+        Fluttertoast.showToast(
+          msg: "Failed to fetch roles",
+          backgroundColor: Colors.red,
+        );
+        return;
+      }
+
+      final rolesData = jsonDecode(rolesResponse.body);
+      List roles = rolesData["roles"];
+
+      if (roles.isEmpty) {
+        Fluttertoast.showToast(
+          msg: "No role assigned to this user",
+          backgroundColor: Colors.orange,
+        );
+        return;
+      }
+
+      String userRole = roles.first.toLowerCase();
+      await prefs.setString('role', userRole);
+
+      Fluttertoast.showToast(
+        msg: "Login successful",
+        backgroundColor: Colors.green,
+        textColor: Colors.white,
+      );
+
+      // 3️⃣ Navigate based on role
+      if (userRole == "admin") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminDashboard()),
+        );
+      } else if (userRole == "agent") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const AgentDashboard()),
+        );
+      } else if (userRole == "voter") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const VoterHomePage()),
+        );
+      } else if (userRole == "candidate") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const CandidateDashboard()),
+        );
+      } else {
+        Fluttertoast.showToast(
+          msg: "Unknown role: $userRole",
+          backgroundColor: Colors.red,
+        );
+      }
+    } catch (e) {
+      Fluttertoast.showToast(
+        msg: "Error: ${e.toString()}",
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+      );
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -182,22 +159,15 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               children: [
                 SizedBox(height: screenHeight * 0.08),
-
-                // Logo
-                Image.asset(
-                  'assets/logo.png',
-                  width: 120,
-                  height: 120,
-                ),
+                Image.asset('assets/logo.png', width: 120, height: 120),
                 SizedBox(height: 20),
-
-                // Welcome Text
                 Text(
                   "Welcome to Votely",
                   style: TextStyle(
-                      fontSize: screenWidth * 0.07,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue[700]),
+                    fontSize: screenWidth * 0.07,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[700],
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 SizedBox(height: 40),
@@ -211,12 +181,8 @@ class _LoginPageState extends State<LoginPage> {
                         borderRadius: BorderRadius.circular(12)),
                     prefixIcon: const Icon(Icons.person),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return "Please enter your identifier";
-                    }
-                    return null;
-                  },
+                  validator: (value) =>
+                  (value == null || value.isEmpty) ? "Enter identifier" : null,
                 ),
                 SizedBox(height: 20),
 
@@ -240,25 +206,16 @@ class _LoginPageState extends State<LoginPage> {
                       },
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return "Please enter your password";
-                    }
-                    return null;
-                  },
+                  validator: (value) =>
+                  (value == null || value.isEmpty) ? "Enter password" : null,
                 ),
-
-                // Forgot Password aligned right
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {
-                      // Navigate to forgot password page
-                    },
+                    onPressed: () {},
                     child: const Text("Forgot Password?"),
                   ),
                 ),
-
                 SizedBox(height: 20),
 
                 // Login Button
@@ -280,9 +237,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
-
                 SizedBox(height: 15),
-
 
                 // Create Account Button
                 SizedBox(
@@ -292,8 +247,7 @@ class _LoginPageState extends State<LoginPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const CreateAccountPage(),
-                        ),
+                            builder: (_) => const CreateAccountPage()),
                       );
                     },
                     style: OutlinedButton.styleFrom(

@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:voting_management/screens/agent_messages_page.dart';
+import 'package:voting_management/screens/agent_report.dart';
+import 'view_allocate_polling_booth.dart';
 
 class AgentProfilePage extends StatefulWidget {
   const AgentProfilePage({super.key});
@@ -23,7 +26,12 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
   File? _profileImage;
 
   final ImagePicker _picker = ImagePicker();
-  final List<String> _documentTypes = ['Aadhaar', 'Passport', 'Voter ID', 'Driving License'];
+  final List<String> _documentTypes = [
+    'Aadhaar',
+    'Passport',
+    'Voter ID',
+    'Driving License'
+  ];
 
   @override
   void initState() {
@@ -31,25 +39,43 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
     _loadAgentData();
   }
 
+  // Future<void> _loadAgentData() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   setState(() {
+  //     final fullName = prefs.getString('agent_name') ?? '';
+  //     List<String> names = fullName.split(' ');
+  //     firstName = names.isNotEmpty ? names[0] : '';
+  //     lastName = names.length > 1 ? names.sublist(1).join(' ') : '';
+  //     fatherName = prefs.getString('father_name') ?? '';
+  //     voterId = prefs.getString('user_id') ?? '';
+  //     agentEmail = prefs.getString('agent_email') ?? '';
+  //     agentPhone = prefs.getString('agent_phone') ?? '';
+  //     documentType = prefs.getString('agent_doc_type') ?? 'Aadhaar';
+  //     documentNumber = prefs.getString('agent_doc_number') ?? '';
+  //     final imagePath = prefs.getString('agent_image_path');
+  //     if (imagePath != null && File(imagePath).existsSync()) {
+  //       _profileImage = File(imagePath);
+  //     }
+  //   });
+  // }
+
   Future<void> _loadAgentData() async {
-    final prefs = await SharedPreferences.getInstance();
     setState(() {
-      final fullName = prefs.getString('agent_name') ?? '';
-      List<String> names = fullName.split(' ');
-      firstName = names.isNotEmpty ? names[0] : '';
-      lastName = names.length > 1 ? names.sublist(1).join(' ') : '';
-      fatherName = prefs.getString('father_name') ?? '';
-      voterId = prefs.getString('user_id') ?? '';
-      agentEmail = prefs.getString('agent_email') ?? '';
-      agentPhone = prefs.getString('agent_phone') ?? '';
-      documentType = prefs.getString('agent_doc_type') ?? 'Aadhaar';
-      documentNumber = prefs.getString('agent_doc_number') ?? '';
-      final imagePath = prefs.getString('agent_image_path');
-      if (imagePath != null && File(imagePath).existsSync()) {
-        _profileImage = File(imagePath);
-      }
+      // Dummy agent profile data for demo
+      firstName = 'Amit';
+      lastName = 'Sharma';
+      fatherName = 'Ramesh Sharma';
+      voterId = 'MH/23/459872';
+      agentEmail = 'amit.sharma@electionteam.in';
+      agentPhone = '+91 9876543210';
+      documentType = 'Aadhaar';
+      documentNumber = '2345-6789-1234';
+
+      // Dummy profile image (you can use an asset or leave null)
+      _profileImage = null;
     });
   }
+
 
   Future<void> _pickImage() async {
     final pickedFile =
@@ -107,7 +133,8 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                     backgroundColor: Colors.grey[300],
                     backgroundImage: _profileImage != null
                         ? FileImage(_profileImage!)
-                        : const AssetImage('assets/agent_avatar.png') as ImageProvider,
+                        : const AssetImage(
+                        'assets/agent_avatar.png') as ImageProvider,
                   ),
                   Positioned(
                     bottom: 5,
@@ -120,7 +147,8 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                           color: Colors.blue,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.edit, color: Colors.white, size: 20),
+                        child: const Icon(
+                            Icons.edit, color: Colors.white, size: 20),
                       ),
                     ),
                   ),
@@ -136,7 +164,8 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                 ),
               ),
               const SizedBox(height: 4), // reduced from 6
-              Text("Voter ID: $voterId", style: const TextStyle(color: Colors.black54)),
+              Text("Voter ID: $voterId",
+                  style: const TextStyle(color: Colors.black54)),
               const SizedBox(height: 15), // reduced from 25
 
               // Editable fields
@@ -195,10 +224,11 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                           isExpanded: true,
                           underline: const SizedBox(),
                           items: _documentTypes
-                              .map((type) => DropdownMenuItem(
-                            value: type,
-                            child: Text(type),
-                          ))
+                              .map((type) =>
+                              DropdownMenuItem(
+                                value: type,
+                                child: Text(type),
+                              ))
                               .toList(),
                           onChanged: (value) {
                             if (value != null) {
@@ -228,15 +258,52 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                 elevation: 4,
                 child: Column(
                   children: [
-                    _buildActionTile(Icons.location_on, "Assigned Booths"),
+                    _buildActionTile(
+                      Icons.location_on,
+                      "Assigned Booths",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (
+                                context) => const ViewAllocatePollingBoothPage(),
+                          ),
+                        );
+                      },
+                    ),
                     _divider(),
-                    _buildActionTile(Icons.message, "Messages"),
+                    _buildActionTile(
+                      Icons.message,
+                      "Messages",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (
+                                context) => const AgentMessagesPage(),
+                          ),
+                        );
+                      },
+                    ),
                     _divider(),
-                    _buildActionTile(Icons.report, "Reports"),
+                    _buildActionTile(
+                      Icons.report,
+                      "Reports",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (
+                                context) => const AgentReportPage(),
+                          ),
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 30),
+
 
               // Save + Logout Buttons
               Row(
@@ -258,22 +325,24 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                     onPressed: () async {
                       bool? confirm = await showDialog(
                         context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text("Confirm Logout"),
-                          content:
-                          const Text("Are you sure you want to logout?"),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text("Cancel"),
+                        builder: (context) =>
+                            AlertDialog(
+                              title: const Text("Confirm Logout"),
+                              content:
+                              const Text("Are you sure you want to logout?"),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(context, false),
+                                  child: const Text("Cancel"),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text("Logout",
+                                      style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
                             ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text("Logout",
-                                  style: TextStyle(color: Colors.red)),
-                            ),
-                          ],
-                        ),
                       );
                       if (confirm == true) _logout();
                     },
@@ -321,21 +390,30 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
     );
   }
 
-  Widget _divider() => const Divider(height: 1, color: Colors.grey);
-
-  Widget _buildActionTile(IconData icon, String title) {
+  Widget _buildActionTile(IconData icon, String title, {VoidCallback? onTap}) {
     return ListTile(
       leading: Icon(icon, color: Colors.blue),
       title: Text(title),
       trailing: const Icon(Icons.arrow_forward_ios, size: 18),
-      onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("$title Coming Soon"),
-            duration: const Duration(seconds: 1),
-          ),
-        );
-      },
+      onTap: onTap ??
+              () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("$title Coming Soon"),
+                duration: const Duration(seconds: 1),
+              ),
+            );
+          },
+    );
+  }
+
+  Widget _divider() {
+    return const Divider(
+      thickness: 1,
+      height: 20,
+      color: Colors.grey,
+      indent: 16,
+      endIndent: 16,
     );
   }
 }
