@@ -605,32 +605,34 @@ class _AddAgentPageState extends State<AddAgentPage> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        // State Dropdown - always visible
-                        // State Dropdown - always visible
-                        DropdownButtonFormField<String>(
-                          value: _selectedState,
-                          decoration: const InputDecoration(
-                            labelText: 'Select State',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: _states.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                          onChanged: (v) {
-                            setState(() {
-                              _selectedState = v;
-                              _selectedDistrict = null;
-                              _selectedCity = null;
-                              _selectedArea = null;
-                              _districts = [];
-                              _cities = [];
-                              _areas = [];
-                              _booths = [];
-                            });
-                            if (v != null) _loadDistricts(v);
-                          },
-                          validator: (v) => v == null ? 'Please select a state' : null,
-                        ),
 
-                        const SizedBox(height: 12),
+                        // State Dropdown - always visible
+                      DropdownButtonFormField<String>(
+                      value: _selectedState,
+                      isExpanded: true, // ✅ ADD THIS
+                      decoration: const InputDecoration(
+                        labelText: 'Select State',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _states.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                      onChanged: (v) {
+                        setState(() {
+                          _selectedState = v;
+                          _selectedDistrict = null;
+                          _selectedCity = null;
+                          _selectedArea = null;
+                          _districts = [];
+                          _cities = [];
+                          _areas = [];
+                          _booths = [];
+                        });
+                        if (v != null) _loadDistricts(v);
+                      },
+                      validator: (v) => v == null ? 'Please select a state' : null,
+                    ),
+
+
+                      const SizedBox(height: 12),
 
 // District Dropdown - only if state is selected and districts loaded
                         if (_selectedState != null && _districts.isNotEmpty)

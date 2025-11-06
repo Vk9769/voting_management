@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:voting_management/screens/master_dashboard.dart';
 import 'signup_page.dart';
 import 'voter_home.dart';
 import 'admin_dashboard.dart';
@@ -39,6 +40,27 @@ class _LoginPageState extends State<LoginPage> {
 
     String identifier = _identifierController.text.trim();
     String password = _passwordController.text.trim();
+
+    // ✅ MASTER LOGIN CHECK (Local Login)
+    if (identifier == "master123" && password == "123456") {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString("auth_token", "master_token");
+      await prefs.setString("role", "master");
+
+      Fluttertoast.showToast(
+          msg: "Master Login Successful",
+          backgroundColor: Colors.green,
+          textColor: Colors.white
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MasterDashboard()),
+      );
+
+      setState(() => _isLoading = false);
+      return;
+    }
 
     try {
       const String baseUrl = "http://13.61.32.111:3000/api/auth";
