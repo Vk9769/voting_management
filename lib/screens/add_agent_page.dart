@@ -85,147 +85,86 @@ class _AddAgentPageState extends State<AddAgentPage> {
   String? _selectedIdType;
   final List<String> _idTypes = ['Aadhar Card', 'Passport', 'Driving License', 'PAN Card'];
 
-  // Booths
-  List<Booth> _booths = [];
-  bool _loadingBooths = true;
-
-  // Location dropdowns
-  String? _selectedState;
-  String? _selectedDistrict;
-  String? _selectedCity;
-  String? _selectedArea;
+  Map<String, Map<String, Map<String, List<String>>>> locationHierarchy = {};
 
   List<String> _states = [];
   List<String> _districts = [];
-  List<String> _cities = [];
-  List<String> _areas = [];
+  List<String> _assemblies = [];
+  List<String> _parts = [];
+
+  String? _selectedState;
+  String? _selectedDistrict;
+  String? _selectedAssembly;
+  String? _selectedPart;
 
   @override
   void initState() {
     super.initState();
-    _loadStates();
+    _fetchLocationHierarchy();
   }
 
-  Future<void> _loadStates() async {
-    // Fetch states from your API
+  Future<void> _fetchLocationHierarchy() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token') ?? '';
+      final token = prefs.getString('auth_token');
+      if (token == null) return;
 
       final response = await http.get(
-        Uri.parse('https://voting-backend-6px8.onrender.com/api/locations/states'),
-        headers: {'Authorization': 'Bearer $token'},
+        Uri.parse('http://13.61.32.111:3000/api/admin/booths'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() => _states = List<String>.from(data['states']));
+      if (response.statusCode != 200) {
+        print("Error: ${response.body}");
+        return;
       }
-    } catch (e) {
-      debugPrint('Failed to load states: $e');
-    }
-  }
 
-  Future<void> _loadDistricts(String state) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token') ?? '';
+      final List data = json.decode(response.body);
 
-      final response = await http.get(
-        Uri.parse('https://voting-backend-6px8.onrender.com/api/locations/districts?state=$state'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
+      print("API DATA LENGTH: ${data.length}");
+      print("First Item: ${data.isNotEmpty ? data[0] : 'No Data'}");
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() => _districts = List<String>.from(data['districts']));
-      }
-    } catch (e) {
-      debugPrint('Failed to load districts: $e');
-    }
-  }
+      Map<String, Map<String, Map<String, List<String>>>> temp = {};
 
-  Future<void> _loadCities(String district) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token') ?? '';
+      for (var booth in data) {
+        final state = booth['state']?.toString().trim() ?? '';
+        final district = booth['district']?.toString().trim() ?? '';
+        final assembly = booth['assembly_constituency']?.toString().trim() ?? '';
 
-      final response = await http.get(
-        Uri.parse('https://voting-backend-6px8.onrender.com/api/locations/cities?district=$district'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
+        final part = (booth['part_name'] ??
+            booth['name'] ??
+            booth['part'] ??
+            booth['booth_name'])
+            ?.toString()
+            .trim() ?? '';
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() => _cities = List<String>.from(data['cities']));
-      }
-    } catch (e) {
-      debugPrint('Failed to load cities: $e');
-    }
-  }
+        if (state.isEmpty || district.isEmpty || assembly.isEmpty || part.isEmpty) continue;
 
-  Future<void> _loadAreas(String city) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token') ?? '';
+        temp[state] ??= {};
+        temp[state]![district] ??= {};
+        temp[state]![district]![assembly] ??= [];
 
-      final response = await http.get(
-        Uri.parse('https://voting-backend-6px8.onrender.com/api/locations/areas?city=$city'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() => _areas = List<String>.from(data['areas']));
-      }
-    } catch (e) {
-      debugPrint('Failed to load areas: $e');
-    }
-  }
-
-  Future<void> _loadBooths(String area) async {
-    setState(() => _loadingBooths = true);
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token') ?? '';
-
-      final response = await http.get(
-        Uri.parse('https://voting-backend-6px8.onrender.com/api/admin/booths?area=$area'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> json = jsonDecode(response.body);
-        final List data = json['booths'] ?? [];
-
-        setState(() {
-          _booths = data.map((e) => Booth.fromJson(e)).toList();
-          _loadingBooths = false;
-          _selectedBooth = null;
-        });
-
-        // Reverse geocode addresses
-        for (var b in _booths) {
-          try {
-            final placemarks = await placemarkFromCoordinates(b.latitude, b.longitude);
-            if (placemarks.isNotEmpty) {
-              final p = placemarks.first;
-              b.address = [p.street, p.locality, p.postalCode, p.country]
-                  .whereType<String>()
-                  .where((e) => e.isNotEmpty)
-                  .join(', ');
-            }
-          } catch (_) {}
+        if (!temp[state]![district]![assembly]!.contains(part)) {
+          temp[state]![district]![assembly]!.add(part);
         }
       }
+
+      setState(() {
+        locationHierarchy = temp;
+        _states = temp.keys.toList()..sort();
+      });
+
     } catch (e) {
-      debugPrint('Failed to load booths: $e');
-      setState(() => _loadingBooths = false);
+      print("Fetch error => $e");
     }
   }
 
+
   double get _formCompletion {
-    int total = 16; // includes all fields and location
+    int total = 15;
     int filled = 0;
     if (_firstNameCtrl.text.trim().isNotEmpty) filled++;
     if (_lastNameCtrl.text.trim().isNotEmpty) filled++;
@@ -237,9 +176,8 @@ class _AddAgentPageState extends State<AddAgentPage> {
     if (_selectedRole != null) filled++;
     if (_selectedState != null) filled++;
     if (_selectedDistrict != null) filled++;
-    if (_selectedCity != null) filled++;
-    if (_selectedArea != null) filled++;
-    if (_selectedBooth != null) filled++;
+    if (_selectedAssembly != null) filled++;
+    if (_selectedPart != null) filled++; // ✅ Correct booth selection
     if (_selectedGender != null) filled++;
     if (_dobCtrl.text.trim().isNotEmpty) filled++;
     if (_addressCtrl.text.trim().isNotEmpty) filled++;
@@ -270,18 +208,20 @@ class _AddAgentPageState extends State<AddAgentPage> {
     _emailCtrl.clear();
     _passwordCtrl.clear();
     _phoneCtrl.clear();
-    _selectedBooth = null;
+    _addressCtrl.clear();
+    _dobCtrl.clear();
     _pickedImage = null;
+
+    _selectedGender = null;
     _selectedRole = null;
     _selectedIdType = null;
+
     _selectedState = null;
     _selectedDistrict = null;
-    _selectedCity = null;
-    _selectedArea = null;
-    _districts = [];
-    _cities = [];
-    _areas = [];
-    _booths = [];
+    _selectedAssembly = null;
+    _selectedPart = null;
+
+    // ✅ DO NOT CLEAR STATE DATA
     setState(() {});
   }
 
@@ -310,7 +250,7 @@ class _AddAgentPageState extends State<AddAgentPage> {
 
   Future<void> _submit() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = prefs.getString('auth_token');
     if (token == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -321,12 +261,12 @@ class _AddAgentPageState extends State<AddAgentPage> {
     }
 
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    if (_selectedBooth == null || _selectedRole == null || _selectedIdType == null) return;
+    if (_selectedPart == null || _selectedRole == null || _selectedIdType == null) return;
 
     setState(() => _loading = true);
 
     try {
-      final uri = Uri.parse('https://voting-backend-6px8.onrender.com/api/agent');
+      final uri = Uri.parse('http://13.61.32.111:3000/api/admin/create-agent'); // ✅ UPDATED URL
 
       var request = http.MultipartRequest('POST', uri);
       request.headers['Authorization'] = 'Bearer $token';
@@ -339,16 +279,14 @@ class _AddAgentPageState extends State<AddAgentPage> {
       request.fields['email'] = _emailCtrl.text.trim();
       request.fields['password'] = _passwordCtrl.text.trim();
       request.fields['phone'] = _phoneCtrl.text.trim();
-      request.fields['boothId'] = _selectedBooth!.id;
       request.fields['role'] = _selectedRole!;
       request.fields['state'] = _selectedState ?? '';
       request.fields['district'] = _selectedDistrict ?? '';
-      request.fields['city'] = _selectedCity ?? '';
-      request.fields['area'] = _selectedArea ?? '';
+      request.fields['assembly_constituency'] = _selectedAssembly ?? '';
+      request.fields['boothId'] = _selectedPart!; // ✅ Correct
       request.fields['gender'] = _selectedGender ?? '';
       request.fields['dob'] = _dobCtrl.text.trim();
       request.fields['address'] = _addressCtrl.text.trim();
-
 
       if (_pickedImage != null) {
         var pic = await http.MultipartFile.fromPath(
@@ -371,19 +309,16 @@ class _AddAgentPageState extends State<AddAgentPage> {
       } else {
         try {
           final resBody = jsonDecode(response.body);
-          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error: ${resBody['error'] ?? 'Unknown error'}')),
           );
         } catch (_) {
-          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error: ${response.body}')),
           );
         }
       }
     } catch (e) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Request failed: $e')),
       );
@@ -399,6 +334,7 @@ class _AddAgentPageState extends State<AddAgentPage> {
     final textSecondary = Theme.of(context).colorScheme.onSurface.withOpacity(.65);
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(title: const Text('Add Agent/Admin'), backgroundColor: primary, centerTitle: true),
       body: Stack(children: [
         SingleChildScrollView(
@@ -694,115 +630,78 @@ class _AddAgentPageState extends State<AddAgentPage> {
 
                 // Location Card
                 Card(
-                  color: Colors.white,
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
 
-                        // State Dropdown - always visible
-// State Dropdown
+                        // STATE
+                        // STATE
                         DropdownButtonFormField<String>(
                           value: _selectedState,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Select State',
-                            border: OutlineInputBorder(),
-                          ),
                           items: _states.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                           onChanged: (v) {
                             setState(() {
                               _selectedState = v;
+                              _districts = locationHierarchy[v]!.keys.toList();
                               _selectedDistrict = null;
-                              _selectedCity = null;
-                              _selectedArea = null;
-                              _districts = [];
-                              _cities = [];
-                              _areas = [];
-                              _booths = [];
+                              _assemblies = [];
+                              _selectedAssembly = null;
+                              _parts = [];
+                              _selectedPart = null;
                             });
-                            if (v != null) _loadDistricts(v);
                           },
-                          validator: (v) => v == null ? 'Please select a state' : null,
+                          decoration: const InputDecoration(labelText: "Select State", border: OutlineInputBorder()),
                         ),
 
-                        const SizedBox(height: 12),
-
-// District Dropdown
-                        if (_selectedState != null && _districts.isNotEmpty)
+// DISTRICT
+                        if (_selectedState != null)
                           DropdownButtonFormField<String>(
                             value: _selectedDistrict,
-                            decoration: const InputDecoration(
-                              labelText: 'Select District',
-                              border: OutlineInputBorder(),
-                            ),
                             items: _districts.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
                             onChanged: (v) {
                               setState(() {
                                 _selectedDistrict = v;
-                                _selectedCity = null;
-                                _selectedArea = null;
-                                _cities = [];
-                                _areas = [];
-                                _booths = [];
+                                _assemblies = locationHierarchy[_selectedState]![v]!.keys.toList();
+                                _selectedAssembly = null;
+                                _parts = [];
+                                _selectedPart = null;
                               });
-                              if (v != null) _loadCities(v);
                             },
-                            validator: (v) => v == null ? 'Please select a district' : null,
+                            decoration: const InputDecoration(labelText: "Select District", border: OutlineInputBorder()),
                           ),
 
-                        const SizedBox(height: 12),
-
-// City Dropdown
-                        if (_selectedDistrict != null && _cities.isNotEmpty)
+// ASSEMBLY
+                        if (_selectedDistrict != null)
                           DropdownButtonFormField<String>(
-                            value: _selectedCity,
-                            decoration: const InputDecoration(
-                              labelText: 'Select City',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: _cities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                            value: _selectedAssembly,
+                            items: _assemblies.map((a) => DropdownMenuItem(value: a, child: Text(a))).toList(),
                             onChanged: (v) {
                               setState(() {
-                                _selectedCity = v;
-                                _selectedArea = null;
-                                _areas = [];
-                                _booths = [];
+                                _selectedAssembly = v;
+                                _parts = List<String>.from(locationHierarchy[_selectedState]![_selectedDistrict]![v]!);
+                                _selectedPart = null;
                               });
-                              if (v != null) _loadAreas(v);
                             },
-                            validator: (v) => v == null ? 'Please select a city' : null,
+                            decoration: const InputDecoration(labelText: "Select Assembly Constituency", border: OutlineInputBorder()),
                           ),
 
-                        const SizedBox(height: 12),
-
-// ✅ Only one Area dropdown (correct)
-                        if (_selectedCity != null && _areas.isNotEmpty)
+// BOOTH
+                        if (_selectedAssembly != null)
                           DropdownButtonFormField<String>(
-                            value: _selectedArea,
-                            decoration: const InputDecoration(
-                              labelText: 'Select Area',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: _areas.map((a) => DropdownMenuItem(value: a, child: Text(a))).toList(),
-                            onChanged: (v) {
-                              setState(() {
-                                _selectedArea = v;
-                                _selectedBooth = null;
-                                _booths = [];
-                              });
-                              if (v != null) _loadBooths(v);
-                            },
-                            validator: (v) => v == null ? 'Please select an area' : null,
+                            value: _selectedPart,
+                            items: _parts.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+                            onChanged: (v) => setState(() => _selectedPart = v),
+                            decoration: const InputDecoration(labelText: "Select Booth", border: OutlineInputBorder()),
                           ),
+
                       ],
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 16),
+
+              const SizedBox(height: 16),
 
                 // Progress + Buttons Card
                 Card(
