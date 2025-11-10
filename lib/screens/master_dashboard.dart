@@ -85,41 +85,63 @@ class _MasterDashboardState extends State<MasterDashboard> {
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Overview',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 16),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1200),
+            child: Builder(
+              builder: (context) {
+                // ✅ Detect device width here (safe place)
+                final width = MediaQuery.of(context).size.width;
+                final bool isWeb = width >= 1000;
 
-            GridView(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.95,
-              ),
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                StatCard(title: 'Polling', value: polls, icon: Icons.how_to_vote, color: primary, background: Colors.white, refreshTick: refreshTick),
-                StatCard(title: 'Voters', value: voters, icon: Icons.people, color: Colors.orange, background: Colors.white, refreshTick: refreshTick),
-                StatCard(title: 'Agents', value: agents, icon: Icons.group, color: Colors.teal, background: Colors.white, refreshTick: refreshTick),
-                StatCard(title: 'Super Agents', value: superAgents, icon: Icons.verified_user, color: Colors.blueGrey, background: Colors.white, refreshTick: refreshTick),
-                StatCard(title: 'Admins', value: admins, icon: Icons.account_circle, color: Colors.deepPurple, background: Colors.white, refreshTick: refreshTick),
-                StatCard(title: 'Super Admins', value: superAdmins, icon: Icons.security, color: Colors.redAccent, background: Colors.white, refreshTick: refreshTick),
-                StatCard(title: 'Candidates', value: candidates, icon: Icons.how_to_vote, color: Colors.green, background: Colors.white, refreshTick: refreshTick),
-                StatCard(title: 'Reports', value: reports, icon: Icons.bar_chart, color: Colors.blueGrey, background: Colors.white, refreshTick: refreshTick),
-              ],
-            ),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Overview',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
 
-            const SizedBox(height: 20),
-            _ActionsRowMaster(primary: primary),
-          ],
+                    // ✅ Responsive Grid
+                    GridView(
+                      gridDelegate: isWeb
+                          ? const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 4,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 1,
+                      )
+                          : const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 1,
+                      ),
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        StatCard(title: 'Polling', value: polls, icon: Icons.how_to_vote, color: primary, background: Colors.white, refreshTick: refreshTick),
+                        StatCard(title: 'Voters', value: voters, icon: Icons.people, color: Colors.orange, background: Colors.white, refreshTick: refreshTick),
+                        StatCard(title: 'Agents', value: agents, icon: Icons.group, color: Colors.teal, background: Colors.white, refreshTick: refreshTick),
+                        StatCard(title: 'Super Agents', value: superAgents, icon: Icons.verified_user, color: Colors.blueGrey, background: Colors.white, refreshTick: refreshTick),
+                        StatCard(title: 'Admins', value: admins, icon: Icons.account_circle, color: Colors.deepPurple, background: Colors.white, refreshTick: refreshTick),
+                        StatCard(title: 'Super Admins', value: superAdmins, icon: Icons.security, color: Colors.redAccent, background: Colors.white, refreshTick: refreshTick),
+                        StatCard(title: 'Candidates', value: candidates, icon: Icons.how_to_vote, color: Colors.green, background: Colors.white, refreshTick: refreshTick),
+                        StatCard(title: 'Reports', value: reports, icon: Icons.bar_chart, color: Colors.blueGrey, background: Colors.white, refreshTick: refreshTick),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+                    _ActionsRowMaster(primary: primary),
+                  ],
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -127,11 +149,43 @@ class _MasterDashboardState extends State<MasterDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isWeb = MediaQuery.of(context).size.width >= 1000;
+
     return Scaffold(
-      drawer: _buildDrawer(context),
+      drawer: isWeb ? null : _buildDrawer(context),
       appBar: _buildAppBar(),
-      body: _getBody(),
-      bottomNavigationBar: BottomNavigationBar(
+      body: Row(
+        children: [
+          if (isWeb)
+            NavigationRail(
+              selectedIndex: _currentIndex,
+              onDestinationSelected: (index) => setState(() => _currentIndex = index),
+              labelType: NavigationRailLabelType.all,
+              leading: const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Icon(Icons.account_circle, size: 46, color: Colors.blue),
+              ),
+              destinations: const [
+                NavigationRailDestination(
+                  icon: Icon(Icons.dashboard),
+                  label: Text('Dashboard'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.message),
+                  label: Text('Message Center'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.travel_explore),
+                  label: Text('Travel'),
+                ),
+              ],
+            ),
+
+          Expanded(child: _getBody()),
+        ],
+      ),
+
+      bottomNavigationBar: isWeb ? null : BottomNavigationBar(
         currentIndex: _currentIndex,
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white70,
@@ -190,68 +244,171 @@ class _ActionsRowMaster extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool wide = MediaQuery.of(context).size.width >= 700;
+    final bool isWeb = MediaQuery.of(context).size.width >= 1000;
 
-    Widget filledButton(String text, IconData icon, Widget page) {
-      return SizedBox(
-        width: wide ? 260 : double.infinity,
-        child: FilledButton.icon(
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => page)),
-          icon: Icon(icon),
-          label: Text(text),
-          style: FilledButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+    final List<_ActionItem> items = [
+      _ActionItem("Add Admin/Agent", Icons.admin_panel_settings, const AddAgentPage()),
+      _ActionItem("View All Admins", Icons.supervised_user_circle, const ViewAllAgentsPage()),
+
+      // ✅ Removed Add Agent
+      _ActionItem("View All Agents", Icons.group, const ViewAllAgentsPage()),
+
+      _ActionItem("Add Candidate", Icons.how_to_vote, const AddCandidatePage()),
+      _ActionItem("View All Candidates", Icons.people, const AdminCandidatesPage()),
+
+      _ActionItem("Add Polling Booth", Icons.add_location_alt, const AddPollingBoothPage()),
+      _ActionItem("View All Polling Booths", Icons.location_on, const ViewAllBoothsPage()),
+
+      _ActionItem("Add Voters", Icons.person_add_alt_1, const VoterHomePage()),
+      _ActionItem("View All Voters", Icons.people_alt, const ViewAllVotersPage()),
+    ];
+
+    if (!isWeb) {
+      return Column(
+        children: items.asMap().entries.map((entry) {
+          int index = entry.key;
+          var item = entry.value;
+
+          bool isFilled = index % 2 == 0; // Even index → Filled, Odd → Outlined
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: SizedBox(              // ✅ Makes button full width
+              width: double.infinity,
+              child: isFilled
+                  ? FilledButton.icon(
+                onPressed: () => Navigator.push(
+                    context, MaterialPageRoute(builder: (_) => item.page)),
+                icon: Icon(item.icon),
+                label: Text(item.title),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              )
+                  : OutlinedButton.icon(
+                onPressed: () => Navigator.push(
+                    context, MaterialPageRoute(builder: (_) => item.page)),
+                icon: Icon(item.icon, color: Colors.blue),
+                label: Text(
+                  item.title,
+                  style: const TextStyle(color: Colors.blue),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.blue, width: 1.6),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
             ),
-            textStyle: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-        ),
+          );
+        }).toList(),
       );
     }
 
-    Widget outlinedButton(String text, IconData icon, Widget page) {
-      return SizedBox(
-        width: wide ? 260 : double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => page)),
-          icon: Icon(icon),
-          label: Text(text),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.blue,
-            side: const BorderSide(color: Colors.blue, width: 1.25),
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+
+    // ✅ Web UI → Material 3 Card Grid
+    // ✅ Web UI → Section Card containing Action Cards Grid
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Management Actions",
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: Colors.black87,
+              ),
             ),
-            textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            const SizedBox(height: 24),
+
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: items.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                childAspectRatio: 2.8,
+                crossAxisSpacing: 24,
+                mainAxisSpacing: 22,
+              ),
+              itemBuilder: (context, i) => _ActionCard(item: items[i]),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionItem {
+  final String title;
+  final IconData icon;
+  final Widget page;
+  _ActionItem(this.title, this.icon, this.page);
+}
+
+// ✅ Modern Material 3 Web Card
+class _ActionCard extends StatefulWidget {
+  final _ActionItem item;
+  const _ActionCard({required this.item});
+
+  @override
+  State<_ActionCard> createState() => _ActionCardState();
+}
+
+class _ActionCardState extends State<_ActionCard> {
+  bool hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => hovered = true),
+      onExit: (_) => setState(() => hovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: hovered ? Colors.blue.withOpacity(0.25) : Colors.black12,
+              blurRadius: hovered ? 18 : 8,
+              offset: hovered ? const Offset(0, 8) : const Offset(0, 3),
+            ),
+          ],
+          border: Border.all(color: Colors.blue.withOpacity(0.22)),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => widget.item.page)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(widget.item.icon, size: 24, color: Colors.blue),
+              const SizedBox(width: 10),
+              Text(
+                widget.item.title,
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              ),
+            ],
           ),
         ),
-      );
-    }
-
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-
-        filledButton("Add Admin", Icons.admin_panel_settings, const AddAgentPage()),
-        outlinedButton("View All Admins", Icons.supervised_user_circle, const ViewAllAgentsPage()),
-
-        filledButton("Add Agent", Icons.person_add, const AddAgentPage()),
-        outlinedButton("View All Agents", Icons.group, const ViewAllAgentsPage()),
-
-        filledButton("Add Candidate", Icons.how_to_vote, const AddCandidatePage()),
-        outlinedButton("View All Candidates", Icons.people, const AdminCandidatesPage()),
-
-        filledButton("Add Polling Booth", Icons.add_location_alt, const AddPollingBoothPage()),
-        outlinedButton("View All Polling Booths", Icons.location_on, const ViewAllBoothsPage()),
-
-        filledButton("Add Voters", Icons.person_add_alt_1, const VoterHomePage()),
-        outlinedButton("View All Voters", Icons.people_alt, const ViewAllVotersPage()),
-      ],
+      ),
     );
   }
 }

@@ -55,6 +55,7 @@ flutter:
     - assets/back_button.png
     - assets/states_districts.json
     - assets/india_flag.jpg
+    - assets/india_bg.png
 
   # To add assets (images/fonts), uncomment and configure below:
   # assets:
