@@ -60,6 +60,12 @@ class _AddAgentPageState extends State<AddAgentPage> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
+  final _dobCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
+
+  String? _selectedGender;
+  final List<String> _genders = ['Male', 'Female', 'Other'];
+
 
   // State
   bool _obscurePassword = true;
@@ -219,7 +225,7 @@ class _AddAgentPageState extends State<AddAgentPage> {
   }
 
   double get _formCompletion {
-    int total = 13; // includes all fields and location
+    int total = 16; // includes all fields and location
     int filled = 0;
     if (_firstNameCtrl.text.trim().isNotEmpty) filled++;
     if (_lastNameCtrl.text.trim().isNotEmpty) filled++;
@@ -234,6 +240,9 @@ class _AddAgentPageState extends State<AddAgentPage> {
     if (_selectedCity != null) filled++;
     if (_selectedArea != null) filled++;
     if (_selectedBooth != null) filled++;
+    if (_selectedGender != null) filled++;
+    if (_dobCtrl.text.trim().isNotEmpty) filled++;
+    if (_addressCtrl.text.trim().isNotEmpty) filled++;
     return filled / total;
   }
 
@@ -336,6 +345,10 @@ class _AddAgentPageState extends State<AddAgentPage> {
       request.fields['district'] = _selectedDistrict ?? '';
       request.fields['city'] = _selectedCity ?? '';
       request.fields['area'] = _selectedArea ?? '';
+      request.fields['gender'] = _selectedGender ?? '';
+      request.fields['dob'] = _dobCtrl.text.trim();
+      request.fields['address'] = _addressCtrl.text.trim();
+
 
       if (_pickedImage != null) {
         var pic = await http.MultipartFile.fromPath(
@@ -596,6 +609,65 @@ class _AddAgentPageState extends State<AddAgentPage> {
                         ),
                         const SizedBox(height: 12),
 
+                        const SizedBox(height: 12),
+
+// Gender Dropdown
+                        DropdownButtonFormField<String>(
+                          value: _selectedGender,
+                          decoration: const InputDecoration(
+                            labelText: 'Gender',
+                            border: OutlineInputBorder(),
+                          ),
+                          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.blue),
+                          items: _genders.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+                          onChanged: (v) => setState(() => _selectedGender = v),
+                          validator: (v) => v == null ? 'Please select gender' : null,
+                        ),
+
+                        const SizedBox(height: 12),
+
+// DOB Picker
+                        TextFormField(
+                          controller: _dobCtrl,
+                          readOnly: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Date of Birth',
+                            prefixIcon: Icon(Icons.calendar_today, color: Colors.blue),
+                            border: OutlineInputBorder(),
+                            hintText: 'Select Date',
+                          ),
+                          onTap: () async {
+                            DateTime? pickedDate = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime(1990, 1, 1),
+                              firstDate: DateTime(1900),
+                              lastDate: DateTime.now(),
+                            );
+                            if (pickedDate != null) {
+                              _dobCtrl.text = "${pickedDate.day}-${pickedDate.month}-${pickedDate.year}";
+                              setState(() {});
+                            }
+                          },
+                          validator: (v) => v == null || v.isEmpty ? 'Please select date of birth' : null,
+                        ),
+
+                        const SizedBox(height: 12),
+
+// Address
+                        TextFormField(
+                          controller: _addressCtrl,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            labelText: 'Address',
+                            prefixIcon: Icon(Icons.location_city, color: Colors.blue),
+                            border: OutlineInputBorder(),
+                            hintText: 'Enter full address',
+                          ),
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Address is required' : null,
+                        ),
+
+                        const SizedBox(height: 16),
+
                         // Role Dropdown
                         DropdownButtonFormField<String>(
                           value: _selectedRole,
@@ -631,114 +703,83 @@ class _AddAgentPageState extends State<AddAgentPage> {
                       children: [
 
                         // State Dropdown - always visible
-                      DropdownButtonFormField<String>(
-                      value: _selectedState,
-                      isExpanded: true, // ✅ ADD THIS
-                      decoration: const InputDecoration(
-                        labelText: 'Select State',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: _states.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                      onChanged: (v) {
-                        setState(() {
-                          _selectedState = v;
-                          _selectedDistrict = null;
-                          _selectedCity = null;
-                          _selectedArea = null;
-                          _districts = [];
-                          _cities = [];
-                          _areas = [];
-                          _booths = [];
-                        });
-                        if (v != null) _loadDistricts(v);
-                      },
-                      validator: (v) => v == null ? 'Please select a state' : null,
-                    ),
+// State Dropdown
+                        DropdownButtonFormField<String>(
+                          value: _selectedState,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Select State',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: _states.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                          onChanged: (v) {
+                            setState(() {
+                              _selectedState = v;
+                              _selectedDistrict = null;
+                              _selectedCity = null;
+                              _selectedArea = null;
+                              _districts = [];
+                              _cities = [];
+                              _areas = [];
+                              _booths = [];
+                            });
+                            if (v != null) _loadDistricts(v);
+                          },
+                          validator: (v) => v == null ? 'Please select a state' : null,
+                        ),
 
+                        const SizedBox(height: 12),
 
-                      const SizedBox(height: 12),
-
-// District Dropdown - only if state is selected and districts loaded
+// District Dropdown
                         if (_selectedState != null && _districts.isNotEmpty)
-                          SizedBox(
-                            width: double.infinity,
-                            child: DropdownButtonFormField<String>(
-                              value: _selectedDistrict,
-                              decoration: const InputDecoration(
-                                labelText: 'Select District',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: _districts.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
-                              onChanged: (v) {
-                                setState(() {
-                                  _selectedDistrict = v;
-                                  _selectedCity = null;
-                                  _selectedArea = null;
-                                  _cities = [];
-                                  _areas = [];
-                                  _booths = [];
-                                });
-                                if (v != null) _loadCities(v);
-                              },
-                              validator: (v) => v == null ? 'Please select a district' : null,
+                          DropdownButtonFormField<String>(
+                            value: _selectedDistrict,
+                            decoration: const InputDecoration(
+                              labelText: 'Select District',
+                              border: OutlineInputBorder(),
                             ),
+                            items: _districts.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                            onChanged: (v) {
+                              setState(() {
+                                _selectedDistrict = v;
+                                _selectedCity = null;
+                                _selectedArea = null;
+                                _cities = [];
+                                _areas = [];
+                                _booths = [];
+                              });
+                              if (v != null) _loadCities(v);
+                            },
+                            validator: (v) => v == null ? 'Please select a district' : null,
                           ),
 
                         const SizedBox(height: 12),
 
-// City Dropdown - only if district selected and cities loaded
+// City Dropdown
                         if (_selectedDistrict != null && _cities.isNotEmpty)
-                          SizedBox(
-                            width: double.infinity,
-                            child: DropdownButtonFormField<String>(
-                              value: _selectedCity,
-                              decoration: const InputDecoration(
-                                labelText: 'Select City',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: _cities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                              onChanged: (v) {
-                                setState(() {
-                                  _selectedCity = v;
-                                  _selectedArea = null;
-                                  _areas = [];
-                                  _booths = [];
-                                });
-                                if (v != null) _loadAreas(v);
-                              },
-                              validator: (v) => v == null ? 'Please select a city' : null,
+                          DropdownButtonFormField<String>(
+                            value: _selectedCity,
+                            decoration: const InputDecoration(
+                              labelText: 'Select City',
+                              border: OutlineInputBorder(),
                             ),
+                            items: _cities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                            onChanged: (v) {
+                              setState(() {
+                                _selectedCity = v;
+                                _selectedArea = null;
+                                _areas = [];
+                                _booths = [];
+                              });
+                              if (v != null) _loadAreas(v);
+                            },
+                            validator: (v) => v == null ? 'Please select a city' : null,
                           ),
 
                         const SizedBox(height: 12),
 
-// Area Dropdown - only if city selected and areas loaded
+// ✅ Only one Area dropdown (correct)
                         if (_selectedCity != null && _areas.isNotEmpty)
-                          SizedBox(
-                            width: double.infinity,
-                            child: DropdownButtonFormField<String>(
-                              value: _selectedArea,
-                              decoration: const InputDecoration(
-                                labelText: 'Select Area',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: _areas.map((a) => DropdownMenuItem(value: a, child: Text(a))).toList(),
-                              onChanged: (v) {
-                                setState(() {
-                                  _selectedArea = v;
-                                  _selectedBooth = null;
-                                  _booths = [];
-                                });
-                                if (v != null) _loadBooths(v);
-                              },
-                              validator: (v) => v == null ? 'Please select an area' : null,
-                            ),
-                          ),
-
-                        const SizedBox(height: 12),
-
-// Area Dropdown - only if city is selected
-                        if (_selectedCity != null)
                           DropdownButtonFormField<String>(
                             value: _selectedArea,
                             decoration: const InputDecoration(
