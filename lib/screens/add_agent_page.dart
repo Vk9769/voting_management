@@ -55,6 +55,7 @@ class _AddAgentPageState extends State<AddAgentPage> {
   // Controllers
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
+  final _voterIdCtrl = TextEditingController();
   final _idNumberCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -71,7 +72,7 @@ class _AddAgentPageState extends State<AddAgentPage> {
   final List<String> _roles = ['Super Agent', 'Agent'];
 
   String? _selectedIdType;
-  final List<String> _idTypes = ['Aadhar Card', 'Passport', 'Voter ID', 'Driving License', 'PAN Card'];
+  final List<String> _idTypes = ['Aadhar Card', 'Passport', 'Driving License', 'PAN Card'];
 
   // Booths
   List<Booth> _booths = [];
@@ -250,6 +251,7 @@ class _AddAgentPageState extends State<AddAgentPage> {
     _formKey.currentState?.reset();
     _firstNameCtrl.clear();
     _lastNameCtrl.clear();
+    _voterIdCtrl.clear();
     _idNumberCtrl.clear();
     _emailCtrl.clear();
     _passwordCtrl.clear();
@@ -283,8 +285,6 @@ class _AddAgentPageState extends State<AddAgentPage> {
         return cleaned.length == 12 && RegExp(r'^\d{12}$').hasMatch(cleaned);
       case 'Passport':
         return cleaned.length >= 6 && cleaned.length <= 9;
-      case 'Voter ID':
-        return cleaned.length >= 10;
       case 'Driving License':
         return cleaned.length >= 10;
       case 'PAN Card':
@@ -319,6 +319,7 @@ class _AddAgentPageState extends State<AddAgentPage> {
 
       request.fields['firstName'] = _firstNameCtrl.text.trim();
       request.fields['lastName'] = _lastNameCtrl.text.trim();
+      request.fields['voterId'] = _voterIdCtrl.text.trim();
       request.fields['idType'] = _selectedIdType!;
       request.fields['idNumber'] = _idNumberCtrl.text.trim();
       request.fields['email'] = _emailCtrl.text.trim();
@@ -380,7 +381,7 @@ class _AddAgentPageState extends State<AddAgentPage> {
     final textSecondary = Theme.of(context).colorScheme.onSurface.withOpacity(.65);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Agent'), backgroundColor: primary, centerTitle: true),
+      appBar: AppBar(title: const Text('Add Agent/Admin'), backgroundColor: primary, centerTitle: true),
       body: Stack(children: [
         SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -464,6 +465,24 @@ class _AddAgentPageState extends State<AddAgentPage> {
                           ),
                           validator: (v) =>
                           (v == null || v.trim().isEmpty) ? 'Last name is required' : null,
+                        ),
+                        const SizedBox(height: 12),
+
+                        // ✅ Voter ID Field
+                        TextFormField(
+                          controller: _voterIdCtrl,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            labelText: 'Voter ID Number',
+                            prefixIcon: Icon(Icons.how_to_vote, color: primary),
+                            border: OutlineInputBorder(),
+                            hintText: 'e.g., XYZ1234567',
+                          ),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return 'Voter ID is required';
+                            if (v.trim().length < 10) return 'Invalid Voter ID (min 10 characters)';
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 12),
 
