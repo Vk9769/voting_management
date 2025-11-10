@@ -69,7 +69,12 @@ class _AddAgentPageState extends State<AddAgentPage> {
 
   // Role Selector
   String? _selectedRole;
-  final List<String> _roles = ['Super Agent', 'Agent'];
+  final List<String> _roles = [
+    'Super Admin',
+    'Admin',
+    'Super Agent',
+    'Agent',
+  ];
 
   String? _selectedIdType;
   final List<String> _idTypes = ['Aadhar Card', 'Passport', 'Driving License', 'PAN Card'];
