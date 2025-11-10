@@ -41,31 +41,10 @@ class _LoginPageState extends State<LoginPage> {
     String identifier = _identifierController.text.trim();
     String password = _passwordController.text.trim();
 
-    // ✅ MASTER LOGIN CHECK (Local Login)
-    if (identifier == "master123" && password == "123456") {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString("auth_token", "master_token");
-      await prefs.setString("role", "master");
-
-      Fluttertoast.showToast(
-          msg: "Master Login Successful",
-          backgroundColor: Colors.green,
-          textColor: Colors.white
-      );
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MasterDashboard()),
-      );
-
-      setState(() => _isLoading = false);
-      return;
-    }
-
     try {
       const String baseUrl = "http://13.61.32.111:3000/api/auth";
 
-      // 1️⃣ Login Request
+      // LOGIN REQUEST
       final loginResponse = await http.post(
         Uri.parse("$baseUrl/login"),
         headers: {"Content-Type": "application/json"},
@@ -86,76 +65,63 @@ class _LoginPageState extends State<LoginPage> {
       String token = loginData["token"];
       var user = loginData["user"];
 
-      // Save token & user info
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString("auth_token", token);
-      await prefs.setString("user_id", user["id"]);
-      await prefs.setString("user_email", user["email"]);
+      List roles = user["roles"] ?? [];
+      String activeRole = (user["activeRole"] ?? "").toLowerCase();
 
-      // 2️⃣ Fetch Roles
-      final rolesResponse = await http.get(
-        Uri.parse("$baseUrl/roles"),
-        headers: {
-          "Authorization": "Bearer $token",
-          "Content-Type": "application/json"
-        },
-      );
-
-      if (rolesResponse.statusCode != 200) {
+      if (roles.isEmpty || activeRole.isEmpty) {
         Fluttertoast.showToast(
-          msg: "Failed to fetch roles",
-          backgroundColor: Colors.red,
-        );
-        return;
-      }
-
-      final rolesData = jsonDecode(rolesResponse.body);
-      List roles = rolesData["roles"];
-
-      if (roles.isEmpty) {
-        Fluttertoast.showToast(
-          msg: "No role assigned to this user",
+          msg: "This user has no role assigned.",
           backgroundColor: Colors.orange,
         );
         return;
       }
 
-      String userRole = roles.first.toLowerCase();
-      await prefs.setString('role', userRole);
+      // SAVE SESSION
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString("auth_token", token);
+      await prefs.setString("user_id", user["id"]);
+      await prefs.setString("user_email", user["email"]);
+      await prefs.setString("role", activeRole);
 
       Fluttertoast.showToast(
-        msg: "Login successful",
+        msg: "Logged in as $activeRole",
         backgroundColor: Colors.green,
         textColor: Colors.white,
       );
 
-      // 3️⃣ Navigate based on role
-      if (userRole == "admin") {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const AdminDashboard()),
-        );
-      } else if (userRole == "agent") {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const AgentDashboard()),
-        );
-      } else if (userRole == "voter") {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const VoterHomePage()),
-        );
-      } else if (userRole == "candidate") {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const CandidateDashboard()),
-        );
-      } else {
-        Fluttertoast.showToast(
-          msg: "Unknown role: $userRole",
-          backgroundColor: Colors.red,
-        );
+      // NAVIGATION BASED ON ROLE
+      switch (activeRole) {
+        case "master_admin":
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MasterDashboard()));
+          break;
+
+        case "super_admin":
+        case "admin":
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminDashboard()));
+          break;
+
+        case "observer":
+          Fluttertoast.showToast(msg: "Observer dashboard not linked yet", backgroundColor: Colors.orange);
+          break;
+
+        case "candidate":
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CandidateDashboard()));
+          break;
+
+        case "blo":
+        case "super_agent":
+        case "agent":
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AgentDashboard()));
+          break;
+
+        case "voter":
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const VoterHomePage()));
+          break;
+
+        default:
+          Fluttertoast.showToast(msg: "Unknown role: $activeRole", backgroundColor: Colors.red);
       }
+
     } catch (e) {
       Fluttertoast.showToast(
         msg: "Error: ${e.toString()}",
@@ -166,6 +132,7 @@ class _LoginPageState extends State<LoginPage> {
       setState(() => _isLoading = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
