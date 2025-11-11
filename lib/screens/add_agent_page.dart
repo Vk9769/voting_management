@@ -31,7 +31,7 @@ class Booth {
     return Booth(
       id: json['id'].toString(),
       name: json['name'] ?? '',
-      address: json['description'] ?? '',
+      address: json['address'] ?? '',
       radiusMeters: (json['radius_meters'] ?? 100).toInt(),
       latitude: (json['latitude'] ?? 0).toDouble(),
       longitude: (json['longitude'] ?? 0).toDouble(),
@@ -75,11 +75,11 @@ class _AddAgentPageState extends State<AddAgentPage> {
 
   // Role Selector
   String? _selectedRole;
-  final List<String> _roles = [
-    'Super Admin',
-    'Admin',
-    'Super Agent',
-    'Agent',
+  final List<Map<String, String>> _roles = [
+    {'label': 'Super Admin', 'value': 'super_admin'},
+    {'label': 'Admin', 'value': 'admin'},
+    {'label': 'Super Agent', 'value': 'super_agent'},
+    {'label': 'Agent', 'value': 'agent'},
   ];
 
   String? _selectedIdType;
@@ -305,8 +305,7 @@ class _AddAgentPageState extends State<AddAgentPage> {
       request.fields['email'] = _emailCtrl.text.trim();
       request.fields['password'] = _passwordCtrl.text.trim();
       request.fields['phone'] = _phoneCtrl.text.trim();
-      request.fields['role'] =
-          _selectedRole!.toLowerCase().replaceAll(' ', '_');
+      request.fields['role'] = _selectedRole!;
       request.fields['state'] = _selectedState ?? '';
       request.fields['district'] = _selectedDistrict ?? '';
       request.fields['assembly_constituency'] = _selectedAssembly ?? '';
@@ -693,15 +692,12 @@ class _AddAgentPageState extends State<AddAgentPage> {
                       labelText: 'Select Role',
                       border: OutlineInputBorder(),
                     ),
-                    icon: const Icon(
-                        Icons.keyboard_arrow_down, color: Colors.blue),
-                    items: _roles
-                        .map((role) =>
+                    items: _roles.map((role) =>
                         DropdownMenuItem(
-                          value: role,
-                          child: Text(role),
-                        ))
-                        .toList(),
+                          value: role['value'],  // ✅ send backend-safe value
+                          child: Text(role['label']!),
+                        )
+                    ).toList(),
                     onChanged: (v) => setState(() => _selectedRole = v),
                     validator: (v) => v == null ? 'Please select a role' : null,
                   ),
