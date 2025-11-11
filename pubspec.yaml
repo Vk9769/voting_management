@@ -36,6 +36,11 @@ dependencies:
   provider: ^6.1.2
   flutter_animate: ^4.2.0
   flutter_typeahead: ^5.2.0
+  flutter_map: ^7.0.0
+  latlong2: ^0.9.0
+  flutter_map_geojson: ^1.0.0-dev.2
+  maplibre_gl: ^0.21.0
+  flutter_svg: ^2.0.9
 
 
 
@@ -56,6 +61,9 @@ flutter:
     - assets/states_districts.json
     - assets/india_flag.jpg
     - assets/india_bg.png
+    - assets/maps/india_states.geojson
+    - assets/maps/blank_style.json
+
 
   # To add assets (images/fonts), uncomment and configure below:
   # assets:

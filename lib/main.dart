@@ -6,6 +6,10 @@ import 'screens/login_page.dart';
 import 'screens/admin_dashboard.dart';
 import 'screens/agent_dashboard.dart';
 import 'screens/WelcomePage.dart'; // ✅ Use the new WelcomePage file
+import 'screens/master_dashboard.dart';
+import 'screens/candidate_dashboard.dart';
+import 'screens/voter_home.dart';
+
 
 void main() {
   runApp(const MyApp());
@@ -39,28 +43,50 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     checkLoginStatus();
   }
-
   Future<void> checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-    final role = prefs.getString('role');
+    final token = prefs.getString('auth_token'); // ✅ Correct key
+    final role = prefs.getString('role');        // ✅ This matches login storage
 
     Timer(const Duration(seconds: 1), () {
       if (token != null && token.isNotEmpty) {
         Widget dashboard;
-        if (role == 'admin') {
-          dashboard = const AdminDashboard();
-        } else if (role == 'agent') {
-          dashboard = const AgentDashboard();
-        } else {
-          dashboard = const WelcomePage();
+
+        switch (role) {
+          case 'master_admin':
+            dashboard = const MasterDashboard();
+            break;
+
+          case 'super_admin':
+          case 'admin':
+            dashboard = const AdminDashboard();
+            break;
+
+          case 'candidate':
+            dashboard = const CandidateDashboard();
+            break;
+
+          case 'blo':
+          case 'super_agent':
+          case 'agent':
+            dashboard = const AgentDashboard();
+            break;
+
+          case 'voter':
+            dashboard = const VoterHomePage();
+            break;
+
+          default:
+            dashboard = const WelcomePage();
         }
+
         _goTo(dashboard);
       } else {
         _goTo(const WelcomePage());
       }
     });
   }
+
 
   void _goTo(Widget page) {
     Navigator.pushReplacement(

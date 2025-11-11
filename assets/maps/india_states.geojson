@@ -1,0 +1,14 @@
+{
+"type": "FeatureCollection",
+"name": "india_states",
+"features": [
+{ "type": "Feature", "properties": { "NAME_1": "Andaman and Nicobar" }, "geometry": { "type": "Polygon", "coordinates": [ [ [92.15, 10.55], [92.65, 10.55], [92.65, 11.00], [92.15, 11.00], [92.15, 10.55] ] ] } },
+{ "type": "Feature", "properties": { "NAME_1": "Gujarat" }, "geometry": { "type": "Polygon", "coordinates": [ [ [68.0, 20.5], [74.0, 20.5], [74.0, 24.7], [68.0, 24.7], [68.0, 20.5] ] ] } },
+{ "type": "Feature", "properties": { "NAME_1": "Maharashtra" }, "geometry": { "type": "Polygon", "coordinates": [ [ [72.6, 15.6], [80.9, 15.6], [80.9, 22.0], [72.6, 22.0], [72.6, 15.6] ] ] } },
+{ "type": "Feature", "properties": { "NAME_1": "Karnataka" }, "geometry": { "type": "Polygon", "coordinates": [ [ [74.0, 11.7], [78.5, 11.7], [78.5, 18.5], [74.0, 18.5], [74.0, 11.7] ] ] } },
+{ "type": "Feature", "properties": { "NAME_1": "Tamil Nadu" }, "geometry": { "type": "Polygon", "coordinates": [ [ [76.0, 8.0], [80.0, 8.0], [80.0, 13.5], [76.0, 13.5], [76.0, 8.0] ] ] } },
+{ "type": "Feature", "properties": { "NAME_1": "Rajasthan" }, "geometry": { "type": "Polygon", "coordinates": [ [ [69.5, 23.3], [78.0, 23.3], [78.0, 30.0], [69.5, 30.0], [69.5, 23.3] ] ] } },
+{ "type": "Feature", "properties": { "NAME_1": "West Bengal" }, "geometry": { "type": "Polygon", "coordinates": [ [ [85.8, 21.5], [90.5, 21.5], [90.5, 27.2], [85.8, 27.2], [85.8, 21.5] ] ] } },
+{ "type": "Feature", "properties": { "NAME_1": "Uttar Pradesh" }, "geometry": { "type": "Polygon", "coordinates": [ [ [77.0, 23.9], [84.5, 23.9], [84.5, 29.5], [77.0, 29.5], [77.0, 23.9] ] ] } }
+]
+}

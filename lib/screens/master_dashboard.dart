@@ -13,11 +13,15 @@ import 'view_all_agents.dart';
 import 'admin_profile_page.dart';
 import 'master_message_center_page.dart';
 import 'travel_page.dart';
+import 'package:voting_management/screens/india_booths_map.dart';
 
 String formatNumber(int number) {
-  if (number >= 1000000000) return '${(number / 1000000000).toStringAsFixed(2)}B';
-  else if (number >= 1000000) return '${(number / 1000000).toStringAsFixed(2)}M';
-  else if (number >= 1000) return '${(number / 1000).toStringAsFixed(1)}K';
+  if (number >= 1000000000)
+    return '${(number / 1000000000).toStringAsFixed(2)}B';
+  else if (number >= 1000000)
+    return '${(number / 1000000).toStringAsFixed(2)}M';
+  else if (number >= 1000)
+    return '${(number / 1000).toStringAsFixed(1)}K';
   return number.toString();
 }
 
@@ -58,9 +62,11 @@ class _MasterDashboardState extends State<MasterDashboard> {
   }
 
   AppBar _buildAppBar() {
-    String title = _currentIndex == 1 ? 'Message Center' :
-    _currentIndex == 2 ? 'Travel' :
-    'Master Dashboard';
+    String title = _currentIndex == 1
+        ? 'Message Center'
+        : _currentIndex == 2
+        ? 'Travel'
+        : 'Master Dashboard';
 
     return AppBar(
       title: Text(title),
@@ -71,9 +77,12 @@ class _MasterDashboardState extends State<MasterDashboard> {
 
   Widget _getBody() {
     switch (_currentIndex) {
-      case 1: return const MasterMessageCenterPage();
-      case 2: return const TravelPage();
-      default: return _dashboardBody();
+      case 1:
+        return const MasterMessageCenterPage();
+      case 2:
+        return const TravelPage();
+      default:
+        return _dashboardBody();
     }
   }
 
@@ -99,10 +108,11 @@ class _MasterDashboardState extends State<MasterDashboard> {
                   children: [
                     Text(
                       'Overview',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
-                      ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                          ),
                     ),
                     const SizedBox(height: 16),
 
@@ -110,28 +120,95 @@ class _MasterDashboardState extends State<MasterDashboard> {
                     GridView(
                       gridDelegate: isWeb
                           ? const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 4,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 1,
-                      )
+                              crossAxisCount: 4,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: 1,
+                            )
                           : const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 1,
-                      ),
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: 1,
+                            ),
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       children: [
-                        StatCard(title: 'Polling', value: polls, icon: Icons.how_to_vote, color: primary, background: Colors.white, refreshTick: refreshTick),
-                        StatCard(title: 'Voters', value: voters, icon: Icons.people, color: Colors.orange, background: Colors.white, refreshTick: refreshTick),
-                        StatCard(title: 'Agents', value: agents, icon: Icons.group, color: Colors.teal, background: Colors.white, refreshTick: refreshTick),
-                        StatCard(title: 'Super Agents', value: superAgents, icon: Icons.verified_user, color: Colors.blueGrey, background: Colors.white, refreshTick: refreshTick),
-                        StatCard(title: 'Admins', value: admins, icon: Icons.account_circle, color: Colors.deepPurple, background: Colors.white, refreshTick: refreshTick),
-                        StatCard(title: 'Super Admins', value: superAdmins, icon: Icons.security, color: Colors.redAccent, background: Colors.white, refreshTick: refreshTick),
-                        StatCard(title: 'Candidates', value: candidates, icon: Icons.how_to_vote, color: Colors.green, background: Colors.white, refreshTick: refreshTick),
-                        StatCard(title: 'Reports', value: reports, icon: Icons.bar_chart, color: Colors.blueGrey, background: Colors.white, refreshTick: refreshTick),
+                        InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const IndiaBoothsMap(),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(22),
+                          child: StatCard(
+                            title: 'Polling',
+                            value: polls,
+                            icon: Icons.how_to_vote,
+                            color: primary,
+                            background: Colors.white,
+                            refreshTick: refreshTick,
+                          ),
+                        ),
+                        StatCard(
+                          title: 'Voters',
+                          value: voters,
+                          icon: Icons.people,
+                          color: Colors.orange,
+                          background: Colors.white,
+                          refreshTick: refreshTick,
+                        ),
+                        StatCard(
+                          title: 'Agents',
+                          value: agents,
+                          icon: Icons.group,
+                          color: Colors.teal,
+                          background: Colors.white,
+                          refreshTick: refreshTick,
+                        ),
+                        StatCard(
+                          title: 'Super Agents',
+                          value: superAgents,
+                          icon: Icons.verified_user,
+                          color: Colors.blueGrey,
+                          background: Colors.white,
+                          refreshTick: refreshTick,
+                        ),
+                        StatCard(
+                          title: 'Admins',
+                          value: admins,
+                          icon: Icons.account_circle,
+                          color: Colors.deepPurple,
+                          background: Colors.white,
+                          refreshTick: refreshTick,
+                        ),
+                        StatCard(
+                          title: 'Super Admins',
+                          value: superAdmins,
+                          icon: Icons.security,
+                          color: Colors.redAccent,
+                          background: Colors.white,
+                          refreshTick: refreshTick,
+                        ),
+                        StatCard(
+                          title: 'Candidates',
+                          value: candidates,
+                          icon: Icons.how_to_vote,
+                          color: Colors.green,
+                          background: Colors.white,
+                          refreshTick: refreshTick,
+                        ),
+                        StatCard(
+                          title: 'Reports',
+                          value: reports,
+                          icon: Icons.bar_chart,
+                          color: Colors.blueGrey,
+                          background: Colors.white,
+                          refreshTick: refreshTick,
+                        ),
                       ],
                     ),
 
@@ -159,7 +236,8 @@ class _MasterDashboardState extends State<MasterDashboard> {
           if (isWeb)
             NavigationRail(
               selectedIndex: _currentIndex,
-              onDestinationSelected: (index) => setState(() => _currentIndex = index),
+              onDestinationSelected: (index) =>
+                  setState(() => _currentIndex = index),
               labelType: NavigationRailLabelType.all,
               leading: const Padding(
                 padding: EdgeInsets.only(top: 12),
@@ -185,18 +263,29 @@ class _MasterDashboardState extends State<MasterDashboard> {
         ],
       ),
 
-      bottomNavigationBar: isWeb ? null : BottomNavigationBar(
-        currentIndex: _currentIndex,
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white70,
-        backgroundColor: Colors.blue,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Message Center'),
-          BottomNavigationBarItem(icon: Icon(Icons.travel_explore), label: 'Travel'),
-        ],
-      ),
+      bottomNavigationBar: isWeb
+          ? null
+          : BottomNavigationBar(
+              currentIndex: _currentIndex,
+              selectedItemColor: Colors.white,
+              unselectedItemColor: Colors.white70,
+              backgroundColor: Colors.blue,
+              onTap: (index) => setState(() => _currentIndex = index),
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.dashboard),
+                  label: 'Dashboard',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.message),
+                  label: 'Message Center',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.travel_explore),
+                  label: 'Travel',
+                ),
+              ],
+            ),
     );
   }
 
@@ -210,26 +299,49 @@ class _MasterDashboardState extends State<MasterDashboard> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: const [
-                CircleAvatar(radius: 35, backgroundColor: Colors.white, child: Icon(Icons.person, size: 50, color: Colors.blue)),
+                CircleAvatar(
+                  radius: 35,
+                  backgroundColor: Colors.white,
+                  child: Icon(Icons.person, size: 50, color: Colors.blue),
+                ),
                 SizedBox(height: 10),
-                Text('Master Admin', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+                Text(
+                  'Master Admin',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Colors.white,
+                  ),
+                ),
                 SizedBox(height: 4),
-                Text('master@example.com', style: TextStyle(color: Colors.white70)),
+                Text(
+                  'master@example.com',
+                  style: TextStyle(color: Colors.white70),
+                ),
               ],
             ),
           ),
           ListTile(
             leading: const Icon(Icons.person),
             title: const Text('View Profile'),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminProfilePage())),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminProfilePage()),
+            ),
           ),
           ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('Logout'),
             onTap: () async {
               final prefs = await SharedPreferences.getInstance();
-              await prefs.clear();
-              Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginPage()), (route) => false);
+              await prefs.remove('auth_token'); // ✅ correct key
+              await prefs.remove('role'); // ✅ role remove
+
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+                (route) => false,
+              );
             },
           ),
         ],
@@ -240,6 +352,7 @@ class _MasterDashboardState extends State<MasterDashboard> {
 
 class _ActionsRowMaster extends StatelessWidget {
   const _ActionsRowMaster({required this.primary});
+
   final Color primary;
 
   @override
@@ -247,20 +360,44 @@ class _ActionsRowMaster extends StatelessWidget {
     final bool isWeb = MediaQuery.of(context).size.width >= 1000;
 
     final List<_ActionItem> items = [
-      _ActionItem("Add Admin/Agent", Icons.admin_panel_settings, const AddAgentPage()),
-      _ActionItem("View All Admins", Icons.supervised_user_circle, const ViewAllAgentsPage()),
+      _ActionItem(
+        "Add Admin/Agent",
+        Icons.admin_panel_settings,
+        const AddAgentPage(),
+      ),
+      _ActionItem(
+        "View All Admins",
+        Icons.supervised_user_circle,
+        const ViewAllAgentsPage(),
+      ),
 
       // ✅ Removed Add Agent
       _ActionItem("View All Agents", Icons.group, const ViewAllAgentsPage()),
 
       _ActionItem("Add Candidate", Icons.how_to_vote, const AddCandidatePage()),
-      _ActionItem("View All Candidates", Icons.people, const AdminCandidatesPage()),
+      _ActionItem(
+        "View All Candidates",
+        Icons.people,
+        const AdminCandidatesPage(),
+      ),
 
-      _ActionItem("Add Polling Booth", Icons.add_location_alt, const AddPollingBoothPage()),
-      _ActionItem("View All Polling Booths", Icons.location_on, const ViewAllBoothsPage()),
+      _ActionItem(
+        "Add Polling Booth",
+        Icons.add_location_alt,
+        const AddPollingBoothPage(),
+      ),
+      _ActionItem(
+        "View All Polling Booths",
+        Icons.location_on,
+        const ViewAllBoothsPage(),
+      ),
 
       _ActionItem("Add Voters", Icons.person_add_alt_1, const VoterHomePage()),
-      _ActionItem("View All Voters", Icons.people_alt, const ViewAllVotersPage()),
+      _ActionItem(
+        "View All Voters",
+        Icons.people_alt,
+        const ViewAllVotersPage(),
+      ),
     ];
 
     if (!isWeb) {
@@ -273,53 +410,55 @@ class _ActionsRowMaster extends StatelessWidget {
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: SizedBox(              // ✅ Makes button full width
+            child: SizedBox(
+              // ✅ Makes button full width
               width: double.infinity,
               child: isFilled
                   ? FilledButton.icon(
-                onPressed: () => Navigator.push(
-                    context, MaterialPageRoute(builder: (_) => item.page)),
-                icon: Icon(item.icon),
-                label: Text(item.title),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              )
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => item.page),
+                      ),
+                      icon: Icon(item.icon),
+                      label: Text(item.title),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    )
                   : OutlinedButton.icon(
-                onPressed: () => Navigator.push(
-                    context, MaterialPageRoute(builder: (_) => item.page)),
-                icon: Icon(item.icon, color: Colors.blue),
-                label: Text(
-                  item.title,
-                  style: const TextStyle(color: Colors.blue),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.blue, width: 1.6),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => item.page),
+                      ),
+                      icon: Icon(item.icon, color: Colors.blue),
+                      label: Text(
+                        item.title,
+                        style: const TextStyle(color: Colors.blue),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.blue, width: 1.6),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
             ),
           );
         }).toList(),
       );
     }
 
-
     // ✅ Web UI → Material 3 Card Grid
     // ✅ Web UI → Section Card containing Action Cards Grid
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 32),
@@ -358,12 +497,14 @@ class _ActionItem {
   final String title;
   final IconData icon;
   final Widget page;
+
   _ActionItem(this.title, this.icon, this.page);
 }
 
 // ✅ Modern Material 3 Web Card
 class _ActionCard extends StatefulWidget {
   final _ActionItem item;
+
   const _ActionCard({required this.item});
 
   @override
@@ -395,7 +536,10 @@ class _ActionCardState extends State<_ActionCard> {
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => widget.item.page)),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => widget.item.page),
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -403,7 +547,10 @@ class _ActionCardState extends State<_ActionCard> {
               const SizedBox(width: 10),
               Text(
                 widget.item.title,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
               ),
             ],
           ),
@@ -412,7 +559,6 @@ class _ActionCardState extends State<_ActionCard> {
     );
   }
 }
-
 
 // ✅ Animated Counter Widget
 class AnimatedCounter extends StatefulWidget {
@@ -444,7 +590,9 @@ class _AnimatedCounterState extends State<AnimatedCounter> {
   Widget build(BuildContext context) {
     return TweenAnimationBuilder(
       tween: Tween<double>(
-          begin: _oldValue.toDouble(), end: widget.value.toDouble()),
+        begin: _oldValue.toDouble(),
+        end: widget.value.toDouble(),
+      ),
       duration: const Duration(milliseconds: 800),
       curve: Curves.easeOut,
       builder: (context, value, child) {
@@ -486,10 +634,7 @@ class StatCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            background,
-            background.withOpacity(0.80),
-          ],
+          colors: [background, background.withOpacity(0.80)],
         ),
         boxShadow: [
           BoxShadow(
@@ -498,10 +643,7 @@ class StatCard extends StatelessWidget {
             offset: const Offset(0, 8),
           ),
         ],
-        border: Border.all(
-          color: color.withOpacity(0.15),
-          width: 1.2,
-        ),
+        border: Border.all(color: color.withOpacity(0.15), width: 1.2),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
