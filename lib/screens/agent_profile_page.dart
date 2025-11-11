@@ -6,6 +6,9 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:voting_management/screens/agent_messages_page.dart';
 import 'package:voting_management/screens/agent_report.dart';
 import 'view_allocate_polling_booth.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
 
 class AgentProfilePage extends StatefulWidget {
   const AgentProfilePage({super.key});
@@ -21,9 +24,12 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
   String voterId = '';
   String agentEmail = '';
   String agentPhone = '';
-  String documentType = 'Aadhaar';
+  String documentType = '';
   String documentNumber = '';
-  File? _profileImage;
+
+  String? _profileImageUrl; // online profile image
+  File? _profileImage; // locally picked profile image
+
 
   final ImagePicker _picker = ImagePicker();
   final List<String> _documentTypes = [
@@ -38,55 +44,80 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
     super.initState();
     _loadAgentData();
   }
-
-  // Future<void> _loadAgentData() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   setState(() {
-  //     final fullName = prefs.getString('agent_name') ?? '';
-  //     List<String> names = fullName.split(' ');
-  //     firstName = names.isNotEmpty ? names[0] : '';
-  //     lastName = names.length > 1 ? names.sublist(1).join(' ') : '';
-  //     fatherName = prefs.getString('father_name') ?? '';
-  //     voterId = prefs.getString('user_id') ?? '';
-  //     agentEmail = prefs.getString('agent_email') ?? '';
-  //     agentPhone = prefs.getString('agent_phone') ?? '';
-  //     documentType = prefs.getString('agent_doc_type') ?? 'Aadhaar';
-  //     documentNumber = prefs.getString('agent_doc_number') ?? '';
-  //     final imagePath = prefs.getString('agent_image_path');
-  //     if (imagePath != null && File(imagePath).existsSync()) {
-  //       _profileImage = File(imagePath);
-  //     }
-  //   });
-  // }
-
   Future<void> _loadAgentData() async {
-    setState(() {
-      // Dummy agent profile data for demo
-      firstName = 'Amit';
-      lastName = 'Sharma';
-      fatherName = 'Ramesh Sharma';
-      voterId = 'MH/23/459872';
-      agentEmail = 'amit.sharma@electionteam.in';
-      agentPhone = '+91 9876543210';
-      documentType = 'Aadhaar';
-      documentNumber = '2345-6789-1234';
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
 
-      // Dummy profile image (you can use an asset or leave null)
-      _profileImage = null;
-    });
+    if (token == null) {
+      Fluttertoast.showToast(msg: "Session expired, please login again");
+      return;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse("http://13.61.32.111:3000/api/agent/profile"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body)['data'];
+
+        setState(() {
+          firstName = data['first_name'] ?? '';
+          lastName = data['last_name'] ?? '';
+          fatherName = data['fathers_name'] ?? '';
+          voterId = data['voter_id'] ?? '';
+          agentEmail = data['email'] ?? '';
+          agentPhone = data['phone'] ?? '';
+          documentType = _documentTypes.contains(data['gov_id_type'])
+              ? data['gov_id_type']
+              : 'Aadhaar';
+          documentNumber = data['gov_id_number'] ?? '';
+
+          String? photoPath = data['profile_photo'];
+          _profileImageUrl = photoPath != null
+              ? "http://13.61.32.111:3000$photoPath"
+              : null;
+        });
+      } else {
+        Fluttertoast.showToast(msg: "Failed to load profile");
+      }
+    } catch (e) {
+      Fluttertoast.showToast(msg: "Error: $e");
+    }
   }
 
 
+
+  //Future<void> _loadAgentData() async {
+  //setState(() {
+      // Dummy agent profile data for demo
+  // firstName = 'Amit';
+  //lastName = 'Sharma';
+  //fatherName = 'Ramesh Sharma';
+  //voterId = 'MH/23/459872';
+  //agentEmail = 'amit.sharma@electionteam.in';
+  //agentPhone = '+91 9876543210';
+  // documentType = 'Aadhaar';
+  //documentNumber = '2345-6789-1234';
+
+      // Dummy profile image (you can use an asset or leave null)
+//_profileImage = null;
+// });
+  // }
+
+
   Future<void> _pickImage() async {
-    final pickedFile =
-    await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
     if (pickedFile != null) {
       setState(() {
         _profileImage = File(pickedFile.path);
+        _profileImageUrl = null; // hide network when picking new image
       });
       Fluttertoast.showToast(msg: "Profile picture updated");
     }
   }
+
 
   Future<void> _saveProfile() async {
     final prefs = await SharedPreferences.getInstance();
@@ -99,6 +130,8 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
     await prefs.setString('agent_doc_number', documentNumber);
     if (_profileImage != null) {
       await prefs.setString('agent_image_path', _profileImage!.path);
+    } else {
+      await prefs.remove('agent_image_path');
     }
     Fluttertoast.showToast(msg: "Profile updated successfully");
   }
@@ -133,8 +166,9 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                     backgroundColor: Colors.grey[300],
                     backgroundImage: _profileImage != null
                         ? FileImage(_profileImage!)
-                        : const AssetImage(
-                        'assets/agent_avatar.png') as ImageProvider,
+                        : (_profileImageUrl != null
+                        ? NetworkImage(_profileImageUrl!)
+                        : const AssetImage('assets/agent_avatar.png') as ImageProvider),
                   ),
                   Positioned(
                     bottom: 5,

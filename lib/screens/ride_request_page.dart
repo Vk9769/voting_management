@@ -352,13 +352,12 @@ class _RideRequestPageState extends State<RideRequestPage>
   void _drawRoute() async {
     if (pickupLocation == null || destinationLocation == null) return;
 
-    PolylinePoints polylinePoints = PolylinePoints();
+    PolylinePoints polylinePoints = PolylinePoints(apiKey: 'YOUR_GOOGLE_MAPS_API_KEY');
+
     PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
-      googleApiKey: 'YOUR_GOOGLE_MAPS_API_KEY',
       request: PolylineRequest(
         origin: PointLatLng(pickupLocation!.latitude, pickupLocation!.longitude),
-        destination: PointLatLng(
-            destinationLocation!.latitude, destinationLocation!.longitude),
+        destination: PointLatLng(destinationLocation!.latitude, destinationLocation!.longitude),
         mode: TravelMode.driving,
       ),
     );
@@ -368,8 +367,8 @@ class _RideRequestPageState extends State<RideRequestPage>
         polylines.add(
           gmap.Polyline(
             polylineId: const gmap.PolylineId("route"),
-            color: const Color(0xFFFF6B35),
             width: 5,
+            color: const Color(0xFFFF6B35),
             points: result.points
                 .map((p) => gmap.LatLng(p.latitude, p.longitude))
                 .toList(),
@@ -380,6 +379,7 @@ class _RideRequestPageState extends State<RideRequestPage>
       _animateCamera();
     }
   }
+
 
   void _animateCamera() {
     if (pickupLocation == null || destinationLocation == null) return;
