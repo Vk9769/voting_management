@@ -143,7 +143,7 @@ class _AddAgentPageState extends State<AddAgentPage> {
       print("First Item: ${data.isNotEmpty ? data[0] : 'No Data'}");
 
       Map<String, Map<String, Map<String, List<Map<String, dynamic>>>>> temp =
-          {};
+      {};
 
       for (var booth in data) {
         final state = booth['state']?.toString().trim() ?? '';
@@ -456,10 +456,10 @@ class _AddAgentPageState extends State<AddAgentPage> {
                                 : null,
                             child: _pickedImage == null
                                 ? const Icon(
-                                    Icons.person,
-                                    color: primary,
-                                    size: 36,
-                                  )
+                              Icons.person,
+                              color: primary,
+                              size: 36,
+                            )
                                 : null,
                           ),
                           const SizedBox(width: 16),
@@ -468,9 +468,9 @@ class _AddAgentPageState extends State<AddAgentPage> {
                               'Profile Photo',
                               style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: textPrimary,
-                                  ),
+                                fontWeight: FontWeight.w700,
+                                color: textPrimary,
+                              ),
                             ),
                           ),
                           OutlinedButton.icon(
@@ -580,15 +580,15 @@ class _AddAgentPageState extends State<AddAgentPage> {
                             items: _idTypes
                                 .map(
                                   (type) => DropdownMenuItem(
-                                    value: type,
-                                    child: Text(type),
-                                  ),
-                                )
+                                value: type,
+                                child: Text(type),
+                              ),
+                            )
                                 .toList(),
                             onChanged: (v) =>
                                 setState(() => _selectedIdType = v),
                             validator: (v) =>
-                                v == null ? 'Please select an ID type' : null,
+                            v == null ? 'Please select an ID type' : null,
                           ),
                           const SizedBox(height: 12),
                           if (_selectedIdType != null)
@@ -709,15 +709,15 @@ class _AddAgentPageState extends State<AddAgentPage> {
                             items: _genders
                                 .map(
                                   (g) => DropdownMenuItem(
-                                    value: g,
-                                    child: Text(g),
-                                  ),
-                                )
+                                value: g,
+                                child: Text(g),
+                              ),
+                            )
                                 .toList(),
                             onChanged: (v) =>
                                 setState(() => _selectedGender = v),
                             validator: (v) =>
-                                v == null ? 'Please select gender' : null,
+                            v == null ? 'Please select gender' : null,
                           ),
 
                           const SizedBox(height: 12),
@@ -744,7 +744,7 @@ class _AddAgentPageState extends State<AddAgentPage> {
                               );
                               if (pickedDate != null) {
                                 _dobCtrl.text =
-                                    "${pickedDate.day}-${pickedDate.month}-${pickedDate.year}";
+                                "${pickedDate.day}-${pickedDate.month}-${pickedDate.year}";
                                 setState(() {});
                               }
                             },
@@ -822,10 +822,10 @@ class _AddAgentPageState extends State<AddAgentPage> {
                             items: _states
                                 .map(
                                   (s) => DropdownMenuItem(
-                                    value: s,
-                                    child: Text(s),
-                                  ),
-                                )
+                                value: s,
+                                child: Text(s),
+                              ),
+                            )
                                 .toList(),
                             onChanged: (v) {
                               setState(() {
@@ -854,10 +854,10 @@ class _AddAgentPageState extends State<AddAgentPage> {
                               items: _districts
                                   .map(
                                     (d) => DropdownMenuItem(
-                                      value: d,
-                                      child: Text(d),
-                                    ),
-                                  )
+                                  value: d,
+                                  child: Text(d),
+                                ),
+                              )
                                   .toList(),
                               onChanged: (v) {
                                 setState(() {
@@ -886,10 +886,10 @@ class _AddAgentPageState extends State<AddAgentPage> {
                               items: _assemblies
                                   .map(
                                     (a) => DropdownMenuItem(
-                                      value: a,
-                                      child: Text(a),
-                                    ),
-                                  )
+                                  value: a,
+                                  child: Text(a),
+                                ),
+                              )
                                   .toList(),
                               onChanged: (v) {
                                 setState(() {

@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+
 
 class AddCandidatePage extends StatefulWidget {
   const AddCandidatePage({Key? key}) : super(key: key);
@@ -15,11 +18,19 @@ class _AddCandidatePageState extends State<AddCandidatePage> {
   final TextEditingController partyController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   final TextEditingController ageController = TextEditingController();
-  final TextEditingController constituencyController = TextEditingController();
   final TextEditingController voterIdController = TextEditingController();
   final TextEditingController aadhaarController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
+
+  Map<String, Map<String, List<String>>> locationHierarchy = {};
+  List<String> states = [];
+  List<String> districts = [];
+  List<String> assemblies = [];
+
+  String? selectedState;
+  String? selectedDistrict;
+  String? selectedAssembly;
 
   String? selectedGender;
   File? candidatePhoto;
@@ -34,13 +45,59 @@ class _AddCandidatePageState extends State<AddCandidatePage> {
     partyController.dispose();
     descriptionController.dispose();
     ageController.dispose();
-    constituencyController.dispose();
     voterIdController.dispose();
     aadhaarController.dispose();
     phoneController.dispose();
     emailController.dispose();
     super.dispose();
   }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLocationHierarchy();
+  }
+
+  Future<void> _fetchLocationHierarchy() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      if (token == null) return;
+
+      final response = await http.get(
+        Uri.parse('http://13.61.32.111:3000/api/admin/booths/full'),
+        headers: { 'Authorization': 'Bearer $token' },
+      );
+
+      if (response.statusCode != 200) return;
+
+      final List data = jsonDecode(response.body);
+
+      Map<String, Map<String, List<String>>> temp = {};
+
+      for (var b in data) {
+        final st = b['state']?.toString() ?? '';
+        final dist = b['district']?.toString() ?? '';
+        final ac = b['assembly_constituency']?.toString() ?? '';
+
+        if (st.isEmpty || dist.isEmpty || ac.isEmpty) continue;
+
+        temp[st] ??= {};
+        temp[st]![dist] ??= [];
+        if (!temp[st]![dist]!.contains(ac)) {
+          temp[st]![dist]!.add(ac);
+        }
+      }
+
+      setState(() {
+        locationHierarchy = temp;
+        states = temp.keys.toList()..sort();
+      });
+    } catch (e) {
+      print("Location Load Error: $e");
+    }
+  }
+
 
   Future<void> _pickImage(bool isCandidatePhoto) async {
     try {
@@ -87,8 +144,16 @@ class _AddCandidatePageState extends State<AddCandidatePage> {
       _showError('Please enter valid age (numbers only)');
       return false;
     }
-    if (constituencyController.text.trim().isEmpty) {
-      _showError('Please enter constituency');
+    if (selectedState == null) {
+      _showError('Please select State');
+      return false;
+    }
+    if (selectedDistrict == null) {
+      _showError('Please select District');
+      return false;
+    }
+    if (selectedAssembly == null) {
+      _showError('Please select Assembly Constituency');
       return false;
     }
     if (voterIdController.text.trim().isEmpty) {
@@ -164,7 +229,9 @@ class _AddCandidatePageState extends State<AddCandidatePage> {
         'party': partyController.text.trim(),
         'age': ageController.text.trim(),
         'gender': selectedGender,
-        'constituency': constituencyController.text.trim(),
+        'state': selectedState,
+        'district': selectedDistrict,
+        'assembly_constituency': selectedAssembly,
         'voterId': voterIdController.text.trim(),
         'aadhaar': aadhaarController.text.trim(),
         'phone': phoneController.text.trim(),
@@ -411,12 +478,58 @@ class _AddCandidatePageState extends State<AddCandidatePage> {
               icon: Icons.flag,
             ),
             const SizedBox(height: 16),
-            _buildTextField(
-              controller: constituencyController,
-              label: 'Constituency *',
-              icon: Icons.location_city,
+
+            DropdownButtonFormField<String>(
+              value: selectedState,
+              items: states.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+              onChanged: (value) {
+                setState(() {
+                  selectedState = value;
+                  districts = locationHierarchy[value]!.keys.toList();
+                  selectedDistrict = null;
+                  assemblies = [];
+                  selectedAssembly = null;
+                });
+              },
+              decoration: const InputDecoration(
+                labelText: "Select State",
+                border: OutlineInputBorder(),
+              ),
             ),
-            const SizedBox(height: 24),
+
+            const SizedBox(height: 16),
+
+            if (selectedState != null)
+              DropdownButtonFormField<String>(
+                value: selectedDistrict,
+                items: districts.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedDistrict = value;
+                    assemblies = locationHierarchy[selectedState]![value]!;
+                    selectedAssembly = null;
+                  });
+                },
+                decoration: const InputDecoration(
+                  labelText: "Select District",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+
+            const SizedBox(height: 16),
+
+            if (selectedDistrict != null)
+              DropdownButtonFormField<String>(
+                value: selectedAssembly,
+                items: assemblies.map((a) => DropdownMenuItem(value: a, child: Text(a))).toList(),
+                onChanged: (value) => setState(() => selectedAssembly = value),
+                decoration: const InputDecoration(
+                  labelText: "Select Assembly Constituency",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+
+            const SizedBox(height: 16),
 
             _buildTextField(
               controller: descriptionController,
