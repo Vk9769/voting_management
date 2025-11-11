@@ -74,12 +74,21 @@ class _AddAgentPageState extends State<AddAgentPage> {
 
   // Role Selector
   String? _selectedRole;
-  final List<Map<String, String>> _roles = [
+
+// keep a master list of all possible creatable roles
+  final List<Map<String, String>> _rolesAll = [
     {'label': 'Super Admin', 'value': 'super_admin'},
     {'label': 'Admin', 'value': 'admin'},
     {'label': 'Super Agent', 'value': 'super_agent'},
     {'label': 'Agent', 'value': 'agent'},
   ];
+
+// will hold only the roles allowed for the logged-in creator
+  List<Map<String, String>> _rolesAllowed = [];
+
+// logged-in creator's role (from SharedPreferences set at login)
+  String? _creatorRole;
+
 
   String? _selectedIdType;
   final List<String> _idTypes = [
@@ -106,6 +115,7 @@ class _AddAgentPageState extends State<AddAgentPage> {
   void initState() {
     super.initState();
     _fetchLocationHierarchy();
+    _loadRoleAndFilter(); // <-- add this
   }
 
   Future<void> _fetchLocationHierarchy() async {
@@ -191,7 +201,34 @@ class _AddAgentPageState extends State<AddAgentPage> {
     if (_addressCtrl.text.trim().isNotEmpty) filled++;
     return filled / total;
   }
+  Future<void> _loadRoleAndFilter() async {
+    final prefs = await SharedPreferences.getInstance();
+    final role = (prefs.getString('role') ?? '').toLowerCase();
 
+    // must mirror backend permissions
+    const Map<String, List<String>> permissions = {
+      'master_admin': ['super_admin', 'admin', 'super_agent', 'agent'],
+      'super_admin':  ['admin', 'super_agent', 'agent'],
+      'admin':        ['super_agent', 'agent'],
+      'super_agent':  ['agent'],
+      'agent':        [],
+    };
+
+    final allowedValues = permissions[role] ?? [];
+
+    setState(() {
+      _creatorRole = role;
+      _rolesAllowed = _rolesAll
+          .where((r) => allowedValues.contains(r['value']))
+          .toList();
+
+      // if previously selected role is not allowed anymore, clear it
+      if (_selectedRole != null &&
+          !_rolesAllowed.any((r) => r['value'] == _selectedRole)) {
+        _selectedRole = null;
+      }
+    });
+  }
   Future<void> _pickImage() async {
     try {
       final picker = ImagePicker();
@@ -282,6 +319,30 @@ class _AddAgentPageState extends State<AddAgentPage> {
         _selectedRole == null ||
         _selectedIdType == null)
       return;
+
+// Validate required dropdowns
+    if (_selectedPart == null || _selectedIdType == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please complete required fields')),
+      );
+      return;
+    }
+
+// ensure role is selected and allowed
+    if (_rolesAllowed.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Your role ($_creatorRole) cannot create users')),
+      );
+      return;
+    }
+
+    if (_selectedRole == null ||
+        !_rolesAllowed.any((r) => r['value'] == _selectedRole)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a valid role')),
+      );
+      return;
+    }
 
     setState(() => _loading = true);
 
@@ -715,25 +776,31 @@ class _AddAgentPageState extends State<AddAgentPage> {
                           const SizedBox(height: 16),
 
                           // Role Dropdown
+                          // Role Dropdown (filtered by creator permissions)
                           DropdownButtonFormField<String>(
                             value: _selectedRole,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: 'Select Role',
-                              border: OutlineInputBorder(),
+                              border: const OutlineInputBorder(),
+                              helperText: (_rolesAllowed.isEmpty)
+                                  ? 'Your role ($_creatorRole) cannot create any roles'
+                                  : null,
                             ),
-                            items: _roles
-                                .map(
-                                  (role) => DropdownMenuItem(
-                                    value: role['value'],
-                                    // ✅ send backend-safe value
-                                    child: Text(role['label']!),
-                                  ),
+                            items: _rolesAllowed.map((role) =>
+                                DropdownMenuItem<String>(
+                                  value: role['value'],
+                                  child: Text(role['label']!),
                                 )
-                                .toList(),
-                            onChanged: (v) => setState(() => _selectedRole = v),
-                            validator: (v) =>
-                                v == null ? 'Please select a role' : null,
+                            ).toList(),
+                            onChanged: _rolesAllowed.isEmpty
+                                ? null // disable if no allowed roles
+                                : (v) => setState(() => _selectedRole = v),
+                            validator: (v) {
+                              if (_rolesAllowed.isEmpty) return null; // nothing to choose = no validation
+                              return v == null ? 'Please select a role' : null;
+                            },
                           ),
+
                         ],
                       ),
                     ),
