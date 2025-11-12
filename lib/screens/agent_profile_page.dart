@@ -78,13 +78,16 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
           _profileImageUrl = photoPath != null
               ? "http://13.61.32.111:3000$photoPath"
               : null;
+
         });
+
       } else {
         Fluttertoast.showToast(msg: "Failed to load profile");
       }
     } catch (e) {
       Fluttertoast.showToast(msg: "Error: $e");
     }
+
   }
 
 
